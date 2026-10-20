@@ -49,6 +49,41 @@ export const STAGES = [
 // They become the only valid values for `Task.assignee`.
 export const TEAM = ['Saayam Mehmood', 'Teammate B', 'Teammate C'];
 
+// Deterministic member colors for prominent owner avatars & badges
+export const TEAM_COLORS = {
+  'Saayam Mehmood': {
+    bg: 'bg-indigo-100',
+    text: 'text-indigo-800',
+    border: 'border-indigo-300',
+    ring: 'ring-indigo-400',
+    dot: 'bg-indigo-500',
+  },
+  'Teammate B': {
+    bg: 'bg-emerald-100',
+    text: 'text-emerald-800',
+    border: 'border-emerald-300',
+    ring: 'ring-emerald-400',
+    dot: 'bg-emerald-500',
+  },
+  'Teammate C': {
+    bg: 'bg-amber-100',
+    text: 'text-amber-800',
+    border: 'border-amber-300',
+    ring: 'ring-amber-400',
+    dot: 'bg-amber-500',
+  },
+};
+
+export function getMemberColors(name) {
+  return TEAM_COLORS[name] || {
+    bg: 'bg-slate-100',
+    text: 'text-slate-800',
+    border: 'border-slate-300',
+    ring: 'ring-slate-400',
+    dot: 'bg-slate-500',
+  };
+}
+
 export const INITIAL_TASKS = [
   {
     id: 'TASK-101',
@@ -86,7 +121,7 @@ export const INITIAL_TASKS = [
     description: 'Set up Vite React project, configure Tailwind colors from DESIGN.md, and test build.',
     type: 'feature',
     status: 'done',
-    assignee: 'Saayam Mehmood',
+    assignee: 'Teammate C',
     dueDate: '2026-10-20',
     createdDate: '2026-10-18',
   },
@@ -160,9 +195,11 @@ export function BugIcon({ className = 'w-3 h-3' }) {
 /**
  * Task card component rendering task attributes according to DESIGN.md
  * M6 tag-style: accent stripe + icon + colors (#0284C7 for feature, #DC2626 for bug)
+ * M7 task-owner: prominent assignee avatar + "Hand off to..." dropdown
  */
-function TaskCard({ task, onSelect }) {
+function TaskCard({ task, onSelect, onHandoff }) {
   const isBug = task.type === 'bug';
+  const ownerColors = getMemberColors(task.assignee);
 
   return (
     <article
@@ -206,23 +243,51 @@ function TaskCard({ task, onSelect }) {
         )}
       </div>
 
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-        <div className="flex items-center gap-1.5 min-w-0">
+      {/* M7 task-owner: Prominent Owner Badge + "Hand off to..." dropdown */}
+      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2 min-w-0">
           <span
-            className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700 shrink-0"
-            title={task.assignee}
+            className={`inline-flex items-center justify-center h-6 w-6 rounded-full border text-[11px] font-bold shrink-0 ${ownerColors.bg} ${ownerColors.text} ${ownerColors.border}`}
+            title={`Assigned to ${task.assignee}`}
           >
             {getInitials(task.assignee)}
           </span>
-          <span className="truncate text-slate-700 font-medium">
-            {task.assignee}
-          </span>
+          <div className="min-w-0">
+            <span className="block truncate text-slate-800 font-semibold text-xs leading-none">
+              {task.assignee}
+            </span>
+            {task.dueDate && (
+              <span className="font-mono text-[10px] text-slate-400 mt-0.5 block">
+                {task.dueDate}
+              </span>
+            )}
+          </div>
         </div>
-        {task.dueDate && (
-          <span className="font-mono text-[11px] text-slate-400 shrink-0 ml-2">
-            {task.dueDate}
-          </span>
-        )}
+
+        {/* Hand off to... Dropdown */}
+        <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+          <select
+            value=""
+            aria-label={`Hand off ${task.title} to teammate`}
+            onChange={(e) => {
+              const newOwner = e.target.value;
+              if (newOwner && newOwner !== task.assignee) {
+                onHandoff(task.id, newOwner);
+              }
+            }}
+            className="text-[11px] font-medium bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer transition-colors shadow-2xs"
+            title="Hand off task to a teammate"
+          >
+            <option value="" disabled>
+              Hand off to...
+            </option>
+            {TEAM.filter((member) => member !== task.assignee).map((member) => (
+              <option key={member} value={member}>
+                {member}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
     </article>
   );
@@ -232,6 +297,7 @@ function TaskCard({ task, onSelect }) {
  * M5 crud-modal: Add / Edit / Delete task modal
  * Adheres to DESIGN.md §4: Centered, max-w-lg, slate-900 backdrop at 40% opacity, explicit high-contrast close button.
  * M6 tag-style: Visual segmented toggle for Feature vs Bug with icons and colors.
+ * M7 task-owner: Prominent Assignee picker with member avatar indicator.
  */
 function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, onDelete }) {
   const [formData, setFormData] = useState({
@@ -317,6 +383,8 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
     }
   };
 
+  const selectedOwnerColors = getMemberColors(formData.assignee);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40"
@@ -385,7 +453,6 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                 Type
               </label>
-              {/* M6 tag-style: visual segmented control for type */}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -437,17 +504,24 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                 Assignee
               </label>
-              <select
-                value={formData.assignee}
-                onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
-              >
-                {TEAM.map((member) => (
-                  <option key={member} value={member}>
-                    {member}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center justify-center h-8 w-8 rounded-full border text-xs font-bold shrink-0 ${selectedOwnerColors.bg} ${selectedOwnerColors.text} ${selectedOwnerColors.border}`}
+                >
+                  {getInitials(formData.assignee)}
+                </span>
+                <select
+                  value={formData.assignee}
+                  onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+                >
+                  {TEAM.map((member) => (
+                    <option key={member} value={member}>
+                      {member}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
@@ -511,6 +585,12 @@ export default function App() {
     defaultStatus: 'todo',
   });
 
+  // M7 task-owner: active handoff toast notification state
+  const [handoffToast, setHandoffToast] = useState(null);
+
+  // Filter tasks by team member (optional filter affordance for the Team Strip)
+  const [filterAssignee, setFilterAssignee] = useState(null);
+
   // M6 tag-style: quick stats for board health
   const featureCount = tasks.filter((t) => t.type === 'feature').length;
   const bugCount = tasks.filter((t) => t.type === 'bug').length;
@@ -540,10 +620,22 @@ export default function App() {
     setModalState((prev) => ({ ...prev, isOpen: false }));
   };
 
+  const triggerHandoffToast = (newOwner) => {
+    // Microcopy specified in DESIGN.md §5: "Task handed off to {name}"
+    setHandoffToast(`Task handed off to ${newOwner}`);
+    setTimeout(() => {
+      setHandoffToast((current) => (current?.includes(newOwner) ? null : current));
+    }, 3500);
+  };
+
   const handleSaveTask = (taskToSave) => {
     if (modalState.mode === 'create') {
       setTasks((prev) => [taskToSave, ...prev]);
     } else {
+      const oldTask = tasks.find((t) => t.id === taskToSave.id);
+      if (oldTask && oldTask.assignee !== taskToSave.assignee) {
+        triggerHandoffToast(taskToSave.assignee);
+      }
       setTasks((prev) =>
         prev.map((t) => (t.id === taskToSave.id ? taskToSave : t))
       );
@@ -556,9 +648,24 @@ export default function App() {
     handleCloseModal();
   };
 
+  // M7 task-owner: Direct "Hand off to..." handler with visual acknowledgement
+  const handleHandoff = (taskId, newOwner) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, assignee: newOwner } : task
+      )
+    );
+    triggerHandoffToast(newOwner);
+  };
+
+  const displayedTasks = filterAssignee
+    ? tasks.filter((t) => t.assignee === filterAssignee)
+    : tasks;
+
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-8">
-      <header className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200/80 pb-6">
+      {/* Header */}
+      <header className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Vibecoding Project Tracker
@@ -598,12 +705,83 @@ export default function App() {
         </div>
       </header>
 
+      {/* M7 task-owner: Team Strip ("Who is doing what?") */}
+      <section className="mb-8 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Team Activity
+            </h2>
+            <span className="text-xs text-slate-400">· Who is doing what</span>
+          </div>
+          {filterAssignee && (
+            <button
+              onClick={() => setFilterAssignee(null)}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+            >
+              Clear Filter (Showing all)
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {TEAM.map((member) => {
+            const memberTasks = tasks.filter((t) => t.assignee === member);
+            const activeTask = memberTasks.find((t) => t.status === 'in-progress');
+            const colors = getMemberColors(member);
+            const isSelected = filterAssignee === member;
+
+            return (
+              <div
+                key={member}
+                onClick={() => setFilterAssignee(isSelected ? null : member)}
+                className={`p-3 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  isSelected
+                    ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500 shadow-sm'
+                    : 'border-slate-200/80 bg-slate-50/60 hover:bg-slate-100/70 hover:border-slate-300'
+                }`}
+                title={`Click to filter board by ${member}`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className={`inline-flex items-center justify-center h-8 w-8 rounded-full border text-xs font-bold shrink-0 ${colors.bg} ${colors.text} ${colors.border}`}
+                  >
+                    {getInitials(member)}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-slate-900 truncate">
+                        {member}
+                      </span>
+                      {activeTask && (
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="Actively driving" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                      {activeTask ? (
+                        <span>Driving: <span className="text-slate-700 font-medium">{activeTask.title}</span></span>
+                      ) : (
+                        <span>{memberTasks.length} {memberTasks.length === 1 ? 'task' : 'tasks'} assigned</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold bg-white border border-slate-200 text-slate-600 shrink-0">
+                  {memberTasks.length}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* TODO M11 anchors: render the Anchor Board (Presentation / Demo / Report / Documentation) above the board. */}
 
       {/* Kanban Board */}
       <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-start">
         {STAGES.map((stage) => {
-          const stageTasks = tasks.filter((t) => t.status === stage.id);
+          const stageTasks = displayedTasks.filter((t) => t.status === stage.id);
           return (
             <section
               key={stage.id}
@@ -637,11 +815,14 @@ export default function App() {
                       key={task.id}
                       task={task}
                       onSelect={handleOpenEditModal}
+                      onHandoff={handleHandoff}
                     />
                   ))
                 ) : (
                   <div className="flex items-center justify-center h-28 rounded-lg border-2 border-dashed border-slate-300/80 p-4 text-center text-xs text-slate-400 font-medium">
-                    Nothing here yet, continue coding
+                    {filterAssignee
+                      ? `No tasks for ${filterAssignee} in ${stage.label}`
+                      : 'Nothing here yet, continue coding'}
                   </div>
                 )}
               </div>
@@ -660,6 +841,31 @@ export default function App() {
         onSave={handleSaveTask}
         onDelete={handleDeleteTask}
       />
+
+      {/* M7 task-owner: Visual Handoff Toast Notification (DESIGN.md §5 & §7) */}
+      {handoffToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl border border-slate-700 transition-all duration-200"
+        >
+          <span className="flex h-2.5 w-2.5 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+          </span>
+          <p className="text-sm font-medium pr-1">{handoffToast}</p>
+          <button
+            type="button"
+            onClick={() => setHandoffToast(null)}
+            className="text-slate-400 hover:text-white p-0.5 rounded transition-colors"
+            title="Dismiss notification"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
