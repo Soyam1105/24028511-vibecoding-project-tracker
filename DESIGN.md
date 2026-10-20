@@ -12,7 +12,7 @@
 
 One sentence that captures the feeling the tracker should leave you with.
 
-`<TODO>`
+This should be a tool which makes collaboration on projects easier and more accessible, used for teams and solo projects.
 
 Two or three references that capture the vibe (links to dribbble shots, screenshots of apps you admire, Pinterest boards — anything visual):
 
