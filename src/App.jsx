@@ -131,7 +131,35 @@ function getInitials(name) {
 }
 
 /**
+ * M6 tag-style: Icons for Feature and Bug tags per DESIGN.md §2
+ */
+export function FeatureIcon({ className = 'w-3 h-3' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+    </svg>
+  );
+}
+
+export function BugIcon({ className = 'w-3 h-3' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="8" height="14" x="8" y="6" rx="4" />
+      <path d="m19 7-3 2" />
+      <path d="m5 7 3 2" />
+      <path d="m19 19-3-2" />
+      <path d="m5 19 3-2" />
+      <path d="M20 13h-4" />
+      <path d="M4 13h4" />
+      <path d="m10 4 1 2" />
+      <path d="m14 4-1 2" />
+    </svg>
+  );
+}
+
+/**
  * Task card component rendering task attributes according to DESIGN.md
+ * M6 tag-style: accent stripe + icon + colors (#0284C7 for feature, #DC2626 for bug)
  */
 function TaskCard({ task, onSelect }) {
   const isBug = task.type === 'bug';
@@ -139,7 +167,9 @@ function TaskCard({ task, onSelect }) {
   return (
     <article
       onClick={() => onSelect && onSelect(task)}
-      className="bg-white rounded-lg border border-slate-200/90 p-4 shadow-sm hover:shadow hover:border-slate-300 transition-all cursor-pointer flex flex-col gap-2.5 text-left group"
+      className={`bg-white rounded-lg border border-slate-200/90 p-4 shadow-sm hover:shadow hover:border-slate-300 transition-all cursor-pointer flex flex-col gap-2.5 text-left group border-l-4 ${
+        isBug ? 'border-l-bug' : 'border-l-feature'
+      }`}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -154,13 +184,14 @@ function TaskCard({ task, onSelect }) {
           {task.id}
         </span>
         <span
-          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium uppercase tracking-wide ${
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${
             isBug
-              ? 'bg-red-50 text-red-700 border border-red-200'
-              : 'bg-sky-50 text-sky-700 border border-sky-200'
+              ? 'bg-red-50 text-bug border border-red-200'
+              : 'bg-sky-50 text-feature border border-sky-200'
           }`}
         >
-          {task.type}
+          {isBug ? <BugIcon className="w-3 h-3 text-bug" /> : <FeatureIcon className="w-3 h-3 text-feature" />}
+          <span>{task.type}</span>
         </span>
       </div>
 
@@ -200,6 +231,7 @@ function TaskCard({ task, onSelect }) {
 /**
  * M5 crud-modal: Add / Edit / Delete task modal
  * Adheres to DESIGN.md §4: Centered, max-w-lg, slate-900 backdrop at 40% opacity, explicit high-contrast close button.
+ * M6 tag-style: Visual segmented toggle for Feature vs Bug with icons and colors.
  */
 function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, onDelete }) {
   const [formData, setFormData] = useState({
@@ -353,14 +385,33 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                 Type
               </label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
-              >
-                <option value="feature">Feature</option>
-                <option value="bug">Bug</option>
-              </select>
+              {/* M6 tag-style: visual segmented control for type */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, type: 'feature' })}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border transition-all ${
+                    formData.type === 'feature'
+                      ? 'bg-sky-50 text-feature border-feature ring-1 ring-feature'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <FeatureIcon className="w-3.5 h-3.5 text-feature" />
+                  <span>Feature</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, type: 'bug' })}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border transition-all ${
+                    formData.type === 'bug'
+                      ? 'bg-red-50 text-bug border-bug ring-1 ring-bug'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <BugIcon className="w-3.5 h-3.5 text-bug" />
+                  <span>Bug</span>
+                </button>
+              </div>
             </div>
 
             <div>
@@ -460,6 +511,10 @@ export default function App() {
     defaultStatus: 'todo',
   });
 
+  // M6 tag-style: quick stats for board health
+  const featureCount = tasks.filter((t) => t.type === 'feature').length;
+  const bugCount = tasks.filter((t) => t.type === 'bug').length;
+
   // TODO M11 anchors:
   //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
 
@@ -512,12 +567,24 @@ export default function App() {
             Saayam · Easy development
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-slate-500 font-medium bg-white border border-slate-200 rounded-md px-3 py-2 shadow-sm">
-            Total Tasks: <span className="font-semibold text-slate-800">{tasks.length}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* M6 tag-style: 3-second visual health indicators */}
+          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-md px-3 py-1.5 shadow-sm text-xs">
+            <span className="font-medium text-slate-500">Tasks:</span>
+            <span className="font-semibold text-slate-800">{tasks.length}</span>
+            <span className="text-slate-300">|</span>
+            <span className="inline-flex items-center gap-1 font-semibold text-feature">
+              <FeatureIcon className="w-3 h-3 text-feature" />
+              {featureCount}
+            </span>
+            <span className="text-slate-300">|</span>
+            <span className="inline-flex items-center gap-1 font-semibold text-bug">
+              <BugIcon className="w-3 h-3 text-bug" />
+              {bugCount}
+            </span>
           </div>
 
-          {/* M5 crud-modal "+" button (labeled "New Task" as per DESIGN.md §5) */}
+          {/* M5 crud-modal "+" button */}
           <button
             type="button"
             onClick={() => handleOpenCreateModal('todo')}
