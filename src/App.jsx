@@ -84,6 +84,79 @@ export function getMemberColors(name) {
   };
 }
 
+/**
+ * M8 due-tint: Computes due status according to DESIGN.md §2:
+ * - due-safe: #16A34A (More than 2 days out)
+ * - due-warning: #D97706 (Less than 24 hours)
+ * - due-overdue: #B91C1C (Past due)
+ * - due-neutral: #64748B (Done overrides date)
+ */
+export function getDueStatus(dueDate, status) {
+  if (status === 'done') {
+    return {
+      state: 'neutral',
+      label: 'Completed',
+      badgeClass: 'bg-slate-100 text-[#64748B] border-slate-200',
+      tintClass: 'bg-slate-50/50 border-slate-200',
+      pillClass: 'text-[#64748B]',
+      daysDiff: null,
+    };
+  }
+
+  if (!dueDate) {
+    return {
+      state: 'none',
+      label: 'No due date',
+      badgeClass: 'bg-slate-50 text-slate-400 border-slate-200',
+      tintClass: 'bg-white border-slate-200/90',
+      pillClass: 'text-slate-400',
+      daysDiff: null,
+    };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [year, month, day] = dueDate.split('-').map(Number);
+  const due = new Date(year, month - 1, day);
+  due.setHours(0, 0, 0, 0);
+
+  const diffMs = due.getTime() - today.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    const overdueDays = Math.abs(diffDays);
+    return {
+      state: 'overdue',
+      label: overdueDays === 1 ? '1 day overdue' : `${overdueDays} days overdue`,
+      badgeClass: 'bg-red-50 text-[#B91C1C] border-red-200 font-semibold',
+      tintClass: 'bg-red-50/30 border-red-200 hover:border-red-300',
+      pillClass: 'text-[#B91C1C]',
+      daysDiff: diffDays,
+    };
+  }
+
+  if (diffDays <= 1) {
+    return {
+      state: 'warning',
+      label: diffDays === 0 ? 'Due today (<24h)' : 'Due tomorrow (<24h)',
+      badgeClass: 'bg-amber-50 text-[#D97706] border-amber-200 font-semibold',
+      tintClass: 'bg-amber-50/30 border-amber-200 hover:border-amber-300',
+      pillClass: 'text-[#D97706]',
+      daysDiff: diffDays,
+    };
+  }
+
+  return {
+    state: 'safe',
+    label: `Due in ${diffDays} days`,
+    badgeClass: 'bg-emerald-50 text-[#16A34A] border-emerald-200 font-medium',
+    tintClass: 'bg-white border-slate-200/90 hover:border-slate-300',
+    pillClass: 'text-[#16A34A]',
+    daysDiff: diffDays,
+  };
+}
+
 export const INITIAL_TASKS = [
   {
     id: 'TASK-101',
@@ -92,7 +165,7 @@ export const INITIAL_TASKS = [
     type: 'feature',
     status: 'todo',
     assignee: 'Saayam Mehmood',
-    dueDate: '2026-10-24',
+    dueDate: '2026-10-24', // Safe: 4 days out
     createdDate: '2026-10-20',
   },
   {
@@ -102,7 +175,7 @@ export const INITIAL_TASKS = [
     type: 'feature',
     status: 'in-progress',
     assignee: 'Saayam Mehmood',
-    dueDate: '2026-10-22',
+    dueDate: '2026-10-21', // Warning: <24h / tomorrow
     createdDate: '2026-10-20',
   },
   {
@@ -112,7 +185,7 @@ export const INITIAL_TASKS = [
     type: 'bug',
     status: 'review',
     assignee: 'Teammate B',
-    dueDate: '2026-10-21',
+    dueDate: '2026-10-19', // Overdue: 1 day past due
     createdDate: '2026-10-19',
   },
   {
@@ -122,7 +195,7 @@ export const INITIAL_TASKS = [
     type: 'feature',
     status: 'done',
     assignee: 'Teammate C',
-    dueDate: '2026-10-20',
+    dueDate: '2026-10-20', // Neutral: Done overrides date
     createdDate: '2026-10-18',
   },
 ];
@@ -192,21 +265,32 @@ export function BugIcon({ className = 'w-3 h-3' }) {
   );
 }
 
+export function ClockIcon({ className = 'w-3 h-3' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
 /**
  * Task card component rendering task attributes according to DESIGN.md
  * M6 tag-style: accent stripe + icon + colors (#0284C7 for feature, #DC2626 for bug)
  * M7 task-owner: prominent assignee avatar + "Hand off to..." dropdown
+ * M8 due-tint: card background & due badge change color based on approaching deadline
  */
 function TaskCard({ task, onSelect, onHandoff }) {
   const isBug = task.type === 'bug';
   const ownerColors = getMemberColors(task.assignee);
+  const dueInfo = getDueStatus(task.dueDate, task.status);
 
   return (
     <article
       onClick={() => onSelect && onSelect(task)}
-      className={`bg-white rounded-lg border border-slate-200/90 p-4 shadow-sm hover:shadow hover:border-slate-300 transition-all cursor-pointer flex flex-col gap-2.5 text-left group border-l-4 ${
+      className={`rounded-lg border p-4 shadow-sm hover:shadow transition-all cursor-pointer flex flex-col gap-2.5 text-left group border-l-4 ${
         isBug ? 'border-l-bug' : 'border-l-feature'
-      }`}
+      } ${dueInfo.tintClass}`}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -243,6 +327,19 @@ function TaskCard({ task, onSelect, onHandoff }) {
         )}
       </div>
 
+      {/* M8 due-tint: Time remaining indicator badge */}
+      {task.dueDate && (
+        <div className="flex items-center">
+          <span
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] border ${dueInfo.badgeClass}`}
+            title={`Due date: ${task.dueDate} (${dueInfo.label})`}
+          >
+            <ClockIcon className="w-3 h-3 shrink-0" />
+            <span>{dueInfo.label}</span>
+          </span>
+        </div>
+      )}
+
       {/* M7 task-owner: Prominent Owner Badge + "Hand off to..." dropdown */}
       <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2 min-w-0">
@@ -252,16 +349,9 @@ function TaskCard({ task, onSelect, onHandoff }) {
           >
             {getInitials(task.assignee)}
           </span>
-          <div className="min-w-0">
-            <span className="block truncate text-slate-800 font-semibold text-xs leading-none">
-              {task.assignee}
-            </span>
-            {task.dueDate && (
-              <span className="font-mono text-[10px] text-slate-400 mt-0.5 block">
-                {task.dueDate}
-              </span>
-            )}
-          </div>
+          <span className="truncate text-slate-800 font-semibold text-xs leading-none">
+            {task.assignee}
+          </span>
         </div>
 
         {/* Hand off to... Dropdown */}
@@ -298,6 +388,7 @@ function TaskCard({ task, onSelect, onHandoff }) {
  * Adheres to DESIGN.md §4: Centered, max-w-lg, slate-900 backdrop at 40% opacity, explicit high-contrast close button.
  * M6 tag-style: Visual segmented toggle for Feature vs Bug with icons and colors.
  * M7 task-owner: Prominent Assignee picker with member avatar indicator.
+ * M8 due-tint: Shows due deadline status badge next to due date input.
  */
 function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, onDelete }) {
   const [formData, setFormData] = useState({
@@ -384,6 +475,7 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
   };
 
   const selectedOwnerColors = getMemberColors(formData.assignee);
+  const modalDueInfo = getDueStatus(formData.dueDate, formData.status);
 
   return (
     <div
@@ -525,9 +617,17 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Due Date
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Due Date
+                </label>
+                {formData.dueDate && modalDueInfo.state !== 'none' && (
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border ${modalDueInfo.badgeClass}`}>
+                    <ClockIcon className="w-2.5 h-2.5 shrink-0" />
+                    {modalDueInfo.label}
+                  </span>
+                )}
+              </div>
               <input
                 type="date"
                 value={formData.dueDate}
@@ -588,12 +688,16 @@ export default function App() {
   // M7 task-owner: active handoff toast notification state
   const [handoffToast, setHandoffToast] = useState(null);
 
-  // Filter tasks by team member (optional filter affordance for the Team Strip)
+  // Filter tasks by team member
   const [filterAssignee, setFilterAssignee] = useState(null);
 
   // M6 tag-style: quick stats for board health
   const featureCount = tasks.filter((t) => t.type === 'feature').length;
   const bugCount = tasks.filter((t) => t.type === 'bug').length;
+
+  // M8 due-tint: deadline stats
+  const overdueCount = tasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'overdue').length;
+  const warningCount = tasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'warning').length;
 
   // TODO M11 anchors:
   //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
@@ -675,20 +779,39 @@ export default function App() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {/* M6 tag-style: 3-second visual health indicators */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-md px-3 py-1.5 shadow-sm text-xs">
+          {/* M6 & M8 health indicators */}
+          <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-md px-3 py-1.5 shadow-sm text-xs">
             <span className="font-medium text-slate-500">Tasks:</span>
             <span className="font-semibold text-slate-800">{tasks.length}</span>
             <span className="text-slate-300">|</span>
-            <span className="inline-flex items-center gap-1 font-semibold text-feature">
+            <span className="inline-flex items-center gap-1 font-semibold text-feature" title="Features">
               <FeatureIcon className="w-3 h-3 text-feature" />
               {featureCount}
             </span>
             <span className="text-slate-300">|</span>
-            <span className="inline-flex items-center gap-1 font-semibold text-bug">
+            <span className="inline-flex items-center gap-1 font-semibold text-bug" title="Bugs">
               <BugIcon className="w-3 h-3 text-bug" />
               {bugCount}
             </span>
+
+            {/* M8 due status indicators */}
+            {(overdueCount > 0 || warningCount > 0) && (
+              <>
+                <span className="text-slate-300">|</span>
+                {overdueCount > 0 && (
+                  <span className="inline-flex items-center gap-1 font-semibold text-[#B91C1C]" title="Overdue tasks">
+                    <span className="h-2 w-2 rounded-full bg-[#B91C1C] animate-pulse" />
+                    {overdueCount} overdue
+                  </span>
+                )}
+                {warningCount > 0 && (
+                  <span className="inline-flex items-center gap-1 font-semibold text-[#D97706]" title="Due in <24h">
+                    <span className="h-2 w-2 rounded-full bg-[#D97706]" />
+                    {warningCount} due soon
+                  </span>
+                )}
+              </>
+            )}
           </div>
 
           {/* M5 crud-modal "+" button */}
