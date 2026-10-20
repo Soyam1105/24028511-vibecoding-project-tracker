@@ -31,9 +31,9 @@ import { useState, useEffect } from 'react';
  * @property {string} assignee
  * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
  * @property {string} createdDate      ISO 'YYYY-MM-DD'
- * @property {string} [context]
- * @property {string|null} [contextTool]
- * @property {string|null} [contextUpdatedAt]
+ * @property {string} context          M9 context — curated briefing for the next AI / teammate
+ * @property {string|null} contextTool M9 context — 'Claude' | 'ChatGPT' | 'Cursor' | 'Lovable' | 'Replit' | 'Other'
+ * @property {string|null} contextUpdatedAt M9 context — ISO timestamp set automatically on save
  */
 
 // The four columns of the board, in render order.
@@ -48,6 +48,9 @@ export const STAGES = [
 // Replace these placeholders with the three names from PRD §8 before M4.
 // They become the only valid values for `Task.assignee`.
 export const TEAM = ['Saayam Mehmood', 'Teammate B', 'Teammate C'];
+
+// M9 context: Allowed AI tools for prompt context briefing
+export const CONTEXT_TOOLS = ['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other'];
 
 // Deterministic member colors for prominent owner avatars & badges
 export const TEAM_COLORS = {
@@ -157,6 +160,21 @@ export function getDueStatus(dueDate, status) {
   };
 }
 
+export function formatContextTime(isoString) {
+  if (!isoString) return null;
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return isoString;
+  }
+}
+
 export const INITIAL_TASKS = [
   {
     id: 'TASK-101',
@@ -167,6 +185,13 @@ export const INITIAL_TASKS = [
     assignee: 'Saayam Mehmood',
     dueDate: '2026-10-24', // Safe: 4 days out
     createdDate: '2026-10-20',
+    context: `## AI Prompt Context
+Build an accessible task modal in React supporting create/edit/delete flows.
+### Constraints
+- Match DESIGN.md §4: max-w-lg, centered, slate-900/40 backdrop.
+- Delete requires confirm message: "Do you wish to delete this task?"`,
+    contextTool: 'Claude',
+    contextUpdatedAt: '2026-10-20T10:15:00Z',
   },
   {
     id: 'TASK-102',
@@ -177,6 +202,12 @@ export const INITIAL_TASKS = [
     assignee: 'Saayam Mehmood',
     dueDate: '2026-10-21', // Warning: <24h / tomorrow
     createdDate: '2026-10-20',
+    context: `## Prompt
+Render 4 columns: To Do, In Progress, Review, Done. Synchronize with localStorage hook.
+### Tech
+Vite + React 18 + Tailwind CSS.`,
+    contextTool: 'Cursor',
+    contextUpdatedAt: '2026-10-20T11:45:00Z',
   },
   {
     id: 'TASK-103',
@@ -187,6 +218,10 @@ export const INITIAL_TASKS = [
     assignee: 'Teammate B',
     dueDate: '2026-10-19', // Overdue: 1 day past due
     createdDate: '2026-10-19',
+    context: `## Audit Notes
+Check WCAG AA 4.5:1 ratio for feature (#0284C7) and bug (#DC2626) badges against light card background.`,
+    contextTool: 'ChatGPT',
+    contextUpdatedAt: '2026-10-20T13:00:00Z',
   },
   {
     id: 'TASK-104',
@@ -197,6 +232,9 @@ export const INITIAL_TASKS = [
     assignee: 'Teammate C',
     dueDate: '2026-10-20', // Neutral: Done overrides date
     createdDate: '2026-10-18',
+    context: `Initialize project structure with Tailwind tokens configured from DESIGN.md palette.`,
+    contextTool: 'Lovable',
+    contextUpdatedAt: '2026-10-18T09:30:00Z',
   },
 ];
 
@@ -274,16 +312,28 @@ export function ClockIcon({ className = 'w-3 h-3' }) {
   );
 }
 
+export function PromptContextIcon({ className = 'w-3 h-3' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <path d="M8 9h8" />
+      <path d="M8 13h5" />
+    </svg>
+  );
+}
+
 /**
  * Task card component rendering task attributes according to DESIGN.md
  * M6 tag-style: accent stripe + icon + colors (#0284C7 for feature, #DC2626 for bug)
  * M7 task-owner: prominent assignee avatar + "Hand off to..." dropdown
  * M8 due-tint: card background & due badge change color based on approaching deadline
+ * M9 context: shows AI context badge when task has curated prompt briefing
  */
 function TaskCard({ task, onSelect, onHandoff }) {
   const isBug = task.type === 'bug';
   const ownerColors = getMemberColors(task.assignee);
   const dueInfo = getDueStatus(task.dueDate, task.status);
+  const hasContext = Boolean(task.context && task.context.trim().length > 0);
 
   return (
     <article
@@ -301,9 +351,22 @@ function TaskCard({ task, onSelect, onHandoff }) {
       }}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs font-semibold text-slate-500 group-hover:text-slate-700">
-          {task.id}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-mono text-xs font-semibold text-slate-500 group-hover:text-slate-700">
+            {task.id}
+          </span>
+          {/* M9 context badge */}
+          {hasContext && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded"
+              title={`AI Context attached (${task.contextTool || 'General'})`}
+            >
+              <PromptContextIcon className="w-2.5 h-2.5 text-indigo-600" />
+              <span>{task.contextTool || 'AI'}</span>
+            </span>
+          )}
+        </div>
+
         <span
           className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${
             isBug
@@ -389,6 +452,7 @@ function TaskCard({ task, onSelect, onHandoff }) {
  * M6 tag-style: Visual segmented toggle for Feature vs Bug with icons and colors.
  * M7 task-owner: Prominent Assignee picker with member avatar indicator.
  * M8 due-tint: Shows due deadline status badge next to due date input.
+ * M9 context: Curated Context briefing field with tool selector & automatic timestamping.
  */
 function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, onDelete }) {
   const [formData, setFormData] = useState({
@@ -398,6 +462,8 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
     status: defaultStatus || 'todo',
     assignee: TEAM[0] || '',
     dueDate: '',
+    context: '',
+    contextTool: 'Claude',
   });
 
   useEffect(() => {
@@ -409,6 +475,8 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
         status: initialTask.status || 'todo',
         assignee: initialTask.assignee || TEAM[0] || '',
         dueDate: initialTask.dueDate || '',
+        context: initialTask.context || '',
+        contextTool: initialTask.contextTool || 'Claude',
       });
     } else {
       setFormData({
@@ -418,6 +486,8 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
         status: defaultStatus || 'todo',
         assignee: TEAM[0] || '',
         dueDate: '',
+        context: '',
+        contextTool: 'Claude',
       });
     }
   }, [initialTask, mode, defaultStatus, isOpen]);
@@ -438,6 +508,18 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
     e.preventDefault();
     if (!formData.title.trim()) return;
 
+    // M9 context: contextUpdatedAt must be automatically timestamped whenever the context field is modified
+    const isContextChanged =
+      mode === 'create'
+        ? Boolean(formData.context.trim())
+        : formData.context.trim() !== (initialTask?.context || '').trim() ||
+          formData.contextTool !== (initialTask?.contextTool || null);
+
+    const nowIso = new Date().toISOString();
+    const contextUpdatedAt = isContextChanged
+      ? nowIso
+      : (initialTask?.contextUpdatedAt || null);
+
     if (mode === 'create') {
       const newTask = {
         id: `TASK-${Date.now().toString().slice(-4)}`,
@@ -447,10 +529,10 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
         status: formData.status,
         assignee: formData.assignee,
         dueDate: formData.dueDate || null,
-        createdDate: new Date().toISOString().slice(0, 10),
-        context: '',
-        contextTool: null,
-        contextUpdatedAt: null,
+        createdDate: nowIso.slice(0, 10),
+        context: formData.context,
+        contextTool: formData.contextTool || 'Claude',
+        contextUpdatedAt: formData.context.trim() ? nowIso : null,
       };
       onSave(newTask);
     } else {
@@ -462,6 +544,9 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
         status: formData.status,
         assignee: formData.assignee,
         dueDate: formData.dueDate || null,
+        context: formData.context,
+        contextTool: formData.contextTool || 'Claude',
+        contextUpdatedAt,
       };
       onSave(updatedTask);
     }
@@ -532,7 +617,7 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
               Description
             </label>
             <textarea
-              rows="3"
+              rows="2"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Add details, acceptance criteria, or vibe notes..."
@@ -637,7 +722,52 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
             </div>
           </div>
 
-          {/* TODO M9 context: Prompt context field will be placed here */}
+          {/* M9 context: Prompt context briefing field */}
+          <div className="pt-2 border-t border-slate-200/80">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <PromptContextIcon className="w-3.5 h-3.5 text-indigo-600" />
+                  Prompt Context
+                </label>
+                <span className="text-[11px] text-slate-400">· Curated briefing for AI / handoffs</span>
+              </div>
+              {initialTask?.contextUpdatedAt && mode === 'edit' && (
+                <span className="text-[10px] text-slate-400">
+                  Updated {formatContextTime(initialTask.contextUpdatedAt)}
+                </span>
+              )}
+            </div>
+
+            {/* AI Tool selector */}
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs text-slate-500 font-medium">Tool:</span>
+              <div className="flex flex-wrap gap-1">
+                {CONTEXT_TOOLS.map((tool) => (
+                  <button
+                    key={tool}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, contextTool: tool })}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
+                      formData.contextTool === tool
+                        ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {tool}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <textarea
+              rows="4"
+              value={formData.context}
+              onChange={(e) => setFormData({ ...formData, context: e.target.value })}
+              placeholder="Paste the prompts, constraints, or configurations used for this task (Markdown supported)..."
+              className="w-full font-mono text-xs px-3 py-2.5 rounded-md border border-slate-300 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 leading-relaxed resize-none"
+            />
+          </div>
 
           {/* Modal Footer */}
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
