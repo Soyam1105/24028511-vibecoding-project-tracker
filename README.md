@@ -100,4 +100,6 @@ Once M9 (`context`) is done, keep the Context field of each real task up to date
 
 ---
 
+adding line to readme so initial commit works
+
 *UXD Vibecoding Hackathon 2026 · Prof. Dr. Ignacio Alvarez*
