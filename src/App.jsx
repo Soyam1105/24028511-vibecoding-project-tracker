@@ -36,6 +36,13 @@ import { useState, useEffect } from 'react';
  * @property {string|null} contextUpdatedAt M9 context — ISO timestamp set automatically on save
  */
 
+/**
+ * @typedef {Object} Anchor
+ * @property {'presentation'|'demo'|'report'|'documentation'} id
+ * @property {string} label
+ * @property {string|null} url
+ */
+
 // The four columns of the board, in render order.
 // Use these IDs everywhere — do not invent new ones.
 export const STAGES = [
@@ -51,6 +58,30 @@ export const TEAM = ['Saayam Mehmood', 'Teammate B', 'Teammate C'];
 
 // M9 context: Allowed AI tools for prompt context briefing
 export const CONTEXT_TOOLS = ['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other'];
+
+// M11 anchors: Fixed 4 deliverable slots strictly specified in PRD §5 & §Data Requirements
+export const INITIAL_ANCHORS = [
+  {
+    id: 'presentation',
+    label: 'Presentation',
+    url: 'https://docs.google.com/presentation',
+  },
+  {
+    id: 'demo',
+    label: 'Demo',
+    url: 'https://24028511-vibecoding-project-tracker.vercel.app/',
+  },
+  {
+    id: 'report',
+    label: 'Report',
+    url: null,
+  },
+  {
+    id: 'documentation',
+    label: 'Documentation',
+    url: 'https://github.com/Soyam1105/24028511-vibecoding-project-tracker',
+  },
+];
 
 // Deterministic member colors for prominent owner avatars & badges
 export const TEAM_COLORS = {
@@ -382,6 +413,230 @@ export function CheckIcon({ className = 'w-3.5 h-3.5' }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12" />
     </svg>
+  );
+}
+
+export function ExternalLinkIcon({ className = 'w-3 h-3' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
+}
+
+export function EditIcon({ className = 'w-3 h-3' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+    </svg>
+  );
+}
+
+export function AnchorIcon({ id, className = 'w-4 h-4' }) {
+  switch (id) {
+    case 'presentation':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="20" height="14" x="2" y="3" rx="2" />
+          <line x1="8" y1="21" x2="16" y2="21" />
+          <line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+      );
+    case 'demo':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="10 8 16 12 10 16 10 8" />
+        </svg>
+      );
+    case 'report':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+      );
+    case 'documentation':
+    default:
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      );
+  }
+}
+
+/**
+ * M11 anchors: Fixed 4 deliverable slots (Presentation, Demo, Report, Documentation)
+ * Pinned above the Kanban board with live URLs, inline edit, and completion indicator.
+ */
+function AnchorBoard({ anchors, onUpdateAnchor }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editUrl, setEditUrl] = useState('');
+
+  const completedCount = anchors.filter((a) => Boolean(a.url && a.url.trim())).length;
+
+  const handleStartEdit = (anchor) => {
+    setEditingId(anchor.id);
+    setEditUrl(anchor.url || '');
+  };
+
+  const handleSave = (id) => {
+    const trimmed = editUrl.trim();
+    onUpdateAnchor(id, trimmed || null);
+    setEditingId(null);
+  };
+
+  const handleKeyDown = (e, id) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave(id);
+    } else if (e.key === 'Escape') {
+      setEditingId(null);
+    }
+  };
+
+  return (
+    <section className="mb-8 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            Anchor Deliverables
+          </h2>
+          <span className="text-xs text-slate-400">· Final Project Pins</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 font-medium">
+            Progress: <span className="font-semibold text-slate-900">{completedCount} of {anchors.length}</span> linked
+          </span>
+          <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+            <div
+              className="h-full bg-indigo-600 transition-all duration-300"
+              style={{ width: `${(completedCount / anchors.length) * 100}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {anchors.map((anchor) => {
+          const isLinked = Boolean(anchor.url && anchor.url.trim());
+          const isEditing = editingId === anchor.id;
+
+          return (
+            <div
+              key={anchor.id}
+              className={`p-3.5 rounded-lg border transition-all flex flex-col justify-between gap-2.5 ${
+                isLinked
+                  ? 'bg-slate-50/70 border-slate-200 hover:border-slate-300'
+                  : 'bg-white border-dashed border-slate-300 hover:border-slate-400'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`inline-flex items-center justify-center h-7 w-7 rounded-md shrink-0 ${
+                      isLinked
+                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                        : 'bg-slate-100 text-slate-400 border border-slate-200'
+                    }`}
+                  >
+                    <AnchorIcon id={anchor.id} className="w-4 h-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold text-slate-900 truncate">
+                      {anchor.label}
+                    </h3>
+                    <span
+                      className={`inline-flex items-center gap-1 text-[10px] font-medium ${
+                        isLinked ? 'text-emerald-700' : 'text-slate-400'
+                      }`}
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          isLinked ? 'bg-emerald-500' : 'bg-slate-300'
+                        }`}
+                      />
+                      {isLinked ? 'Linked' : 'Pending Link'}
+                    </span>
+                  </div>
+                </div>
+
+                {!isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit(anchor)}
+                    className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors"
+                    title={`Edit ${anchor.label} link`}
+                  >
+                    <EditIcon className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {isEditing ? (
+                <div className="space-y-1.5 pt-1">
+                  <input
+                    type="url"
+                    autoFocus
+                    value={editUrl}
+                    onChange={(e) => setEditUrl(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, anchor.id)}
+                    placeholder="https://..."
+                    className="w-full text-xs px-2 py-1.5 border border-indigo-400 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600 bg-white"
+                  />
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(null)}
+                      className="px-2 py-0.5 text-[11px] text-slate-500 hover:text-slate-700 rounded hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSave(anchor.id)}
+                      className="px-2 py-0.5 text-[11px] font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded shadow-2xs"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-1">
+                  {isLinked ? (
+                    <a
+                      href={anchor.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium truncate max-w-full hover:underline group"
+                      title={anchor.url}
+                    >
+                      <span className="truncate">{anchor.url.replace(/^https?:\/\//, '')}</span>
+                      <ExternalLinkIcon className="w-3 h-3 shrink-0 text-indigo-400 group-hover:text-indigo-600" />
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleStartEdit(anchor)}
+                      className="text-xs text-slate-400 hover:text-indigo-600 font-medium flex items-center gap-1 transition-colors"
+                    >
+                      <span>+ Add deliverable URL</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -936,6 +1191,9 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
 export default function App() {
   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', INITIAL_TASKS);
 
+  // M11 anchors: Fixed 4 deliverable slots strictly specified in PRD §5 & §Data Requirements
+  const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', INITIAL_ANCHORS);
+
   // M5 crud-modal state
   const [modalState, setModalState] = useState({
     isOpen: false,
@@ -944,7 +1202,7 @@ export default function App() {
     defaultStatus: 'todo',
   });
 
-  // M7 & M10 unified Toast state: { message: string, id?: string }
+  // M7 & M10 unified Toast state: string
   const [activeToast, setActiveToast] = useState(null);
 
   // M10 copied task ID tracker for inline button feedback
@@ -960,9 +1218,6 @@ export default function App() {
   // M8 due-tint: deadline stats
   const overdueCount = tasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'overdue').length;
   const warningCount = tasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'warning').length;
-
-  // TODO M11 anchors:
-  //   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', [...]);
 
   const handleOpenCreateModal = (stageId = 'todo') => {
     setModalState({
@@ -1044,6 +1299,14 @@ export default function App() {
     triggerHandoffToast(newOwner);
   };
 
+  // M11 anchors: Update an anchor slot URL
+  const handleUpdateAnchor = (id, newUrl) => {
+    setAnchors((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, url: newUrl } : a))
+    );
+    showToast(newUrl ? 'Deliverable link updated' : 'Deliverable link removed');
+  };
+
   const displayedTasks = filterAssignee
     ? tasks.filter((t) => t.assignee === filterAssignee)
     : tasks;
@@ -1109,6 +1372,12 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {/* M11 anchors: Pinned Deliverable Anchor Board (Presentation / Demo / Report / Documentation) */}
+      <AnchorBoard
+        anchors={anchors}
+        onUpdateAnchor={handleUpdateAnchor}
+      />
 
       {/* M7 task-owner: Team Strip ("Who is doing what?") */}
       <section className="mb-8 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
@@ -1180,8 +1449,6 @@ export default function App() {
           })}
         </div>
       </section>
-
-      {/* TODO M11 anchors: render the Anchor Board (Presentation / Demo / Report / Documentation) above the board. */}
 
       {/* Kanban Board */}
       <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-start">
