@@ -1,14 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * Vibecoding Project Tracker
  *
- * Core Features & Functional Requirements:
- * - FR1 - FR5  : Project Management (Create, Edit details, Delete, Sidebar listing, Switch projects)
- * - FR6 - FR13 : Project Dashboard (Overview, Upcoming deadlines, Progress stats, Overdue count, Deliverables)
- * - FR14 - FR29: Kanban Board (4 fixed columns, Task CRUD, Title/Desc/Type, Quick column movement, Member assignment, Due date urgency, Filters by member/type/due date)
- * - FR30 - FR34: AI Context (Prompts & generated output, AI model selector, Edit context, 1-click Copy, Markdown formatting)
- * - FR35 - FR39: Team Management (Project members roster, Auto-assigned PM to creator, Clear PM identification, Invite new members, Remove members)
+ * Core Features:
+ * - Project Management (Create, Edit name, Delete, Sidebar listing, Switch projects)
+ * - Project Access Control (Only project members have access to view and manage projects)
+ * - Landing / Login Screen (Profile selection portal on website open and logout)
+ * - Project Invite Code & Join Flow (Random string code; join projects via sidebar)
+ * - Project Manager Role Management (Promote team members to PM, Demote PMs)
+ * - Account Deletion (Available once logged in via top-right account menu)
+ * - Project Dashboard (Side-by-side Project Overview & Upcoming Deadlines, Deliverables above the fold)
+ * - Kanban Board (4 fixed columns, Task CRUD, Quick column movement, Member assignment, Due date urgency, Filters)
+ * - AI Context (Prompts & generated output, AI model selector, Edit context, 1-click Copy, Markdown formatting)
+ * - Team Management (Project members roster, Clear PM identification, Remove members)
+ * - User Account System (Prototype account switcher in top bar, switch between team profiles)
  */
 
 export const STAGES = [
@@ -22,22 +28,33 @@ export const TEAM = ['Saayam Mehmood', 'Teammate B', 'Teammate C'];
 
 export const CONTEXT_TOOLS = ['Claude', 'ChatGPT', 'Cursor', 'Lovable', 'Replit', 'Other'];
 
+export function generateRandomCode(length = 6) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 export const INITIAL_PROJECTS = [
   {
     id: 'proj-hackathon',
     name: 'Hackathon Project Tracker',
-    description: 'Central project tracking Module 5 vibecoding deliverables, Kanban task states, and AI prompt context briefings.',
     createdAt: '2026-10-20',
+    managers: ['Saayam Mehmood'],
     manager: 'Saayam Mehmood',
     members: ['Saayam Mehmood', 'Teammate B', 'Teammate C'],
+    inviteCode: 'K9X2B7',
   },
   {
     id: 'proj-landing',
     name: 'Marketing & Landing Page',
-    description: 'Public marketing website, demo walkthrough videos, and landing page assets for product launch.',
     createdAt: '2026-10-21',
+    managers: ['Saayam Mehmood'],
     manager: 'Saayam Mehmood',
     members: ['Saayam Mehmood', 'Teammate B'],
+    inviteCode: 'W4M8Q1',
   },
 ];
 
@@ -108,6 +125,18 @@ export function getMemberColors(name) {
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   const index = Math.abs(hash) % PALETTES.length;
   return PALETTES[index];
+}
+
+export function getProjectManagers(project) {
+  if (!project) return [];
+  if (Array.isArray(project.managers) && project.managers.length > 0) {
+    return project.managers;
+  }
+  return [project.manager || 'Saayam Mehmood'];
+}
+
+export function isProjectManager(project, user) {
+  return getProjectManagers(project).includes(user);
 }
 
 export function getDueStatus(dueDate, status) {
@@ -439,6 +468,15 @@ export function FolderIcon({ className = 'w-4 h-4' }) {
   );
 }
 
+export function LockIcon({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
 export function AnchorIcon({ id, className = 'w-4 h-4' }) {
   switch (id) {
     case 'presentation':
@@ -478,7 +516,7 @@ export function AnchorIcon({ id, className = 'w-4 h-4' }) {
 }
 
 /**
- * Markdown preview formatter for FR34
+ * Markdown preview formatter
  */
 function MarkdownPreview({ content }) {
   if (!content || !content.trim()) {
@@ -532,13 +570,169 @@ function renderFormattedText(text) {
 }
 
 /**
- * Project Sidebar with Create (FR1), Edit details (FR2), Delete (FR3), List (FR4), Switch (FR5)
+ * Landing / Login Screen for Prototype User Authentication
+ * Note: Profile deletion is strictly available inside the app once logged in.
+ */
+function LandingLoginScreen({ accounts, projects, onSelectUser, onAddUser }) {
+  const [customName, setCustomName] = useState('');
+
+  const handleCustomSubmit = (e) => {
+    e.preventDefault();
+    if (!customName.trim()) return;
+    onAddUser(customName.trim());
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between relative overflow-hidden font-sans">
+      {/* Background ambient lighting */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-indigo-600/20 blur-[130px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 right-10 w-[500px] h-[300px] bg-purple-600/15 blur-[120px] rounded-full pointer-events-none" />
+
+      {/* Top Header */}
+      <header className="relative z-10 max-w-6xl w-full mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            </svg>
+          </div>
+          <div>
+            <span className="font-bold text-base tracking-tight block">Vibecoding Tracker</span>
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Prototype Access Portal</span>
+          </div>
+        </div>
+
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+          Role-Based Access Control
+        </span>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="relative z-10 max-w-4xl w-full mx-auto px-6 py-8 my-auto space-y-8">
+        <div className="text-center space-y-3">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white">
+            Who is logging in today?
+          </h1>
+          <p className="text-sm md:text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
+            Select a team member profile below to access your assigned projects, Kanban boards, and AI prompt context briefings:
+          </p>
+        </div>
+
+        {/* User Account Selection Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {accounts.map((user) => {
+            const colors = getMemberColors(user);
+            const userProjects = projects.filter((p) => {
+              const members = p.members && p.members.length > 0 ? p.members : TEAM;
+              return members.includes(user) || isProjectManager(p, user);
+            });
+            const isManagerOfAny = projects.some((p) => isProjectManager(p, user));
+
+            return (
+              <div
+                key={user}
+                onClick={() => onSelectUser(user)}
+                className="group relative bg-slate-900/70 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between gap-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <span
+                      className={`inline-flex items-center justify-center h-12 w-12 rounded-xl border text-sm font-bold shadow-sm ${colors.bg} ${colors.text} ${colors.border}`}
+                    >
+                      {getInitials(user)}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                        isManagerOfAny
+                          ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {isManagerOfAny ? '👑 Project Lead' : 'Team Member'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
+                      {user}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {userProjects.length} accessible project{userProjects.length === 1 ? '' : 's'}
+                    </p>
+                  </div>
+
+                  {/* Project badges */}
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {userProjects.map((proj) => (
+                      <span
+                        key={proj.id}
+                        className="text-[10px] bg-slate-800/90 text-slate-300 px-2 py-0.5 rounded-md border border-slate-700/60 truncate max-w-[150px]"
+                        title={proj.name}
+                      >
+                        {proj.name}
+                      </span>
+                    ))}
+                    {userProjects.length === 0 && (
+                      <span className="text-[10px] text-slate-500 italic">No project memberships yet</span>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="w-full py-2 px-3 rounded-lg bg-indigo-600 group-hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <span>Sign In as {user.split(' ')[0]}</span>
+                  <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Custom Profile Creation */}
+        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 sm:p-5 max-w-lg mx-auto">
+          <span className="text-xs font-semibold text-slate-300 block mb-2 text-center">
+            Or create a new team profile:
+          </span>
+          <form onSubmit={handleCustomSubmit} className="flex gap-2">
+            <input
+              type="text"
+              required
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              placeholder="e.g. Alex Smith"
+              className="flex-1 bg-slate-950 border border-slate-700 focus:border-indigo-500 px-3 py-2 text-xs rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition-colors shrink-0 border border-slate-700"
+            >
+              Create &amp; Sign In →
+            </button>
+          </form>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 max-w-6xl w-full mx-auto px-6 py-4 text-center text-xs text-slate-500 border-t border-slate-800/80">
+        Vibecoding Project Tracker · Prototype Environment with Project Access Control
+      </footer>
+    </div>
+  );
+}
+
+/**
+ * Project Sidebar with Create, Join, Edit name, Delete, and List (No description field)
  */
 function ProjectSidebar({
   projects,
   activeProjectId,
   onSelectProject,
   onCreateProject,
+  onJoinProject,
   onEditProject,
   onDeleteProject,
   tasks,
@@ -546,34 +740,40 @@ function ProjectSidebar({
   onCloseMobile,
 }) {
   const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectDesc, setNewProjectDesc] = useState('');
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
 
-  // Project editing state (FR2)
+  // Project editing state
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editName, setEditName] = useState('');
-  const [editDesc, setEditDesc] = useState('');
 
   const handleCreateSubmit = (e) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
-    onCreateProject(newProjectName.trim(), newProjectDesc.trim());
+    onCreateProject(newProjectName.trim());
     setNewProjectName('');
-    setNewProjectDesc('');
     setIsCreating(false);
+  };
+
+  const handleJoinSubmit = (e) => {
+    e.preventDefault();
+    if (!inviteCodeInput.trim()) return;
+    onJoinProject(inviteCodeInput.trim().toUpperCase());
+    setInviteCodeInput('');
+    setIsJoining(false);
   };
 
   const handleStartEdit = (project, e) => {
     e.stopPropagation();
     setEditingProjectId(project.id);
     setEditName(project.name);
-    setEditDesc(project.description || '');
   };
 
   const handleSaveEdit = (e) => {
     e.preventDefault();
     if (!editName.trim()) return;
-    onEditProject(editingProjectId, editName.trim(), editDesc.trim());
+    onEditProject(editingProjectId, editName.trim());
     setEditingProjectId(null);
   };
 
@@ -615,28 +815,91 @@ function ProjectSidebar({
           </button>
         </div>
 
-        {/* Projects Section Header */}
+        {/* Projects Section Header with Join and New buttons */}
         <div className="p-3 border-b border-slate-100 flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Projects
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setIsCreating(true);
-              setEditingProjectId(null);
-            }}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-0.5 rounded transition-colors"
-            title="Create new project (FR1)"
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-            </svg>
-            <span>New</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              My Projects
+            </span>
+            <span className="text-[10px] text-slate-400 font-semibold">({projects.length})</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {/* Join Project button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsJoining(true);
+                setIsCreating(false);
+                setEditingProjectId(null);
+              }}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-100 px-1.5 py-0.5 rounded transition-colors"
+              title="Join project using invite code"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              </svg>
+              <span>Join</span>
+            </button>
+
+            {/* Create Project button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsCreating(true);
+                setIsJoining(false);
+                setEditingProjectId(null);
+              }}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-1.5 py-0.5 rounded transition-colors"
+              title="Create new project"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>New</span>
+            </button>
+          </div>
         </div>
 
-        {/* Create Project Form (FR1) */}
+        {/* Join Project with Invite Code Form */}
+        {isJoining && (
+          <form onSubmit={handleJoinSubmit} className="p-3 bg-indigo-50/70 border-b border-indigo-200 space-y-2">
+            <div>
+              <label className="block text-[11px] font-semibold text-indigo-950 mb-0.5">
+                Enter Invite Code
+              </label>
+              <input
+                type="text"
+                autoFocus
+                required
+                value={inviteCodeInput}
+                onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
+                placeholder="e.g. K9X2B7"
+                className="w-full px-2.5 py-1 text-xs font-mono uppercase bg-white border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600 tracking-wider"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsJoining(false);
+                  setInviteCodeInput('');
+                }}
+                className="px-2 py-1 text-[11px] text-slate-500 hover:text-slate-700 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-2.5 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded shadow-2xs"
+              >
+                Join Project
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Create Project Form (Name only - no description) */}
         {isCreating && (
           <form onSubmit={handleCreateSubmit} className="p-3 bg-slate-50 border-b border-slate-200 space-y-2">
             <div>
@@ -654,26 +917,12 @@ function ProjectSidebar({
               />
             </div>
 
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
-                Description
-              </label>
-              <textarea
-                rows="2"
-                value={newProjectDesc}
-                onChange={(e) => setNewProjectDesc(e.target.value)}
-                placeholder="Goals, target users, or context..."
-                className="w-full px-2.5 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600 resize-none"
-              />
-            </div>
-
             <div className="flex items-center justify-end gap-1.5 pt-1">
               <button
                 type="button"
                 onClick={() => {
                   setIsCreating(false);
                   setNewProjectName('');
-                  setNewProjectDesc('');
                 }}
                 className="px-2 py-1 text-[11px] text-slate-500 hover:text-slate-700 rounded"
               >
@@ -689,12 +938,12 @@ function ProjectSidebar({
           </form>
         )}
 
-        {/* Edit Project Inline Form (FR2) */}
+        {/* Edit Project Inline Form (Name only - no description) */}
         {editingProjectId && (
           <form onSubmit={handleSaveEdit} className="p-3 bg-indigo-50/50 border-b border-indigo-200 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">
-                Edit Project
+                Rename Project
               </span>
               <button
                 type="button"
@@ -718,18 +967,6 @@ function ProjectSidebar({
               />
             </div>
 
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
-                Description
-              </label>
-              <textarea
-                rows="2"
-                value={editDesc}
-                onChange={(e) => setEditDesc(e.target.value)}
-                className="w-full px-2.5 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600 resize-none"
-              />
-            </div>
-
             <div className="flex items-center justify-end gap-1.5 pt-1">
               <button
                 type="button"
@@ -742,99 +979,99 @@ function ProjectSidebar({
                 type="submit"
                 className="px-2.5 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded shadow-2xs"
               >
-                Save Changes
+                Save
               </button>
             </div>
           </form>
         )}
 
-        {/* Projects List (FR4 & FR5) */}
+        {/* Projects List (Names only) */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {projects.map((project) => {
-            const isSelected = project.id === activeProjectId;
-            const isEditing = editingProjectId === project.id;
-            const projectTaskCount = tasks.filter(
-              (t) => (t.projectId || projects[0]?.id) === project.id
-            ).length;
+          {projects.length > 0 ? (
+            projects.map((project) => {
+              const isSelected = project.id === activeProjectId;
+              const isEditing = editingProjectId === project.id;
+              const projectTaskCount = tasks.filter(
+                (t) => (t.projectId || projects[0]?.id) === project.id
+              ).length;
 
-            return (
-              <div
-                key={project.id}
-                onClick={() => {
-                  onSelectProject(project.id);
-                  onCloseMobile();
-                }}
-                className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-all ${
-                  isSelected
-                    ? 'bg-indigo-50 text-indigo-900 font-semibold shadow-2xs border border-indigo-200/80'
-                    : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-900'
-                } ${isEditing ? 'ring-2 ring-indigo-400' : ''}`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <FolderIcon
-                    className={`w-4 h-4 shrink-0 ${
-                      isSelected ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
-                    }`}
-                  />
-                  <div className="min-w-0">
+              return (
+                <div
+                  key={project.id}
+                  onClick={() => {
+                    onSelectProject(project.id);
+                    onCloseMobile();
+                  }}
+                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                    isSelected
+                      ? 'bg-indigo-50 text-indigo-900 font-semibold shadow-2xs border border-indigo-200/80'
+                      : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-900'
+                  } ${isEditing ? 'ring-2 ring-indigo-400' : ''}`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <FolderIcon
+                      className={`w-4 h-4 shrink-0 ${
+                        isSelected ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                      }`}
+                    />
                     <span className="block truncate">{project.name}</span>
-                    {project.description && (
-                      <span className="block truncate text-[10px] text-slate-400 font-normal">
-                        {project.description}
-                      </span>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span
+                      className={`min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold flex items-center justify-center ${
+                        isSelected
+                          ? 'bg-indigo-200/70 text-indigo-900'
+                          : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
+                      }`}
+                    >
+                      {projectTaskCount}
+                    </span>
+
+                    {/* Edit Project Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleStartEdit(project, e)}
+                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 p-0.5 rounded transition-opacity"
+                      title="Rename project"
+                    >
+                      <EditIcon className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Delete Project Button */}
+                    {projects.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteProject(project.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-0.5 rounded transition-opacity"
+                        title="Delete project"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     )}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  <span
-                    className={`min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold flex items-center justify-center ${
-                      isSelected
-                        ? 'bg-indigo-200/70 text-indigo-900'
-                        : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
-                    }`}
-                  >
-                    {projectTaskCount}
-                  </span>
-
-                  {/* Edit Project Button (FR2) */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleStartEdit(project, e)}
-                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 p-0.5 rounded transition-opacity"
-                    title="Edit project details (FR2)"
-                  >
-                    <EditIcon className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Delete Project Button (FR3) */}
-                  {projects.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteProject(project.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-0.5 rounded transition-opacity"
-                      title="Delete project (FR3)"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <div className="p-4 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg space-y-1">
+              <p>No accessible projects.</p>
+              <p className="text-[10px] text-slate-400">Click <strong>Join</strong> above to enter an invite code, or <strong>New</strong> to create one.</p>
+            </div>
+          )}
         </div>
 
         <div className="p-3 border-t border-slate-200 bg-slate-50/60 text-[11px] text-slate-500 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="font-medium text-slate-700">Workspace active</span>
+            <span className="font-medium text-slate-700">Project Access Active</span>
           </div>
-          <span className="text-[10px] text-slate-400 font-mono">v1.3</span>
+          <span className="text-[10px] text-slate-400 font-mono">v1.7</span>
         </div>
       </aside>
     </>
@@ -842,84 +1079,7 @@ function ProjectSidebar({
 }
 
 /**
- * Team Activity Component (Displayed on Kanban tab for quick team pulse)
- */
-function TeamActivitySection({ team, projectTasks, filterAssignee, onToggleFilter }) {
-  return (
-    <section className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            Team Activity
-          </h2>
-          <span className="text-[11px] text-slate-400">· Who is doing what in this project</span>
-        </div>
-        {filterAssignee && (
-          <button
-            onClick={() => onToggleFilter(null)}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
-          >
-            Clear Filter (Showing all)
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-        {team.map((member) => {
-          const memberTasks = projectTasks.filter((t) => t.assignee === member);
-          const activeTask = memberTasks.find((t) => t.status === 'in-progress');
-          const colors = getMemberColors(member);
-          const isSelected = filterAssignee === member;
-
-          return (
-            <div
-              key={member}
-              onClick={() => onToggleFilter(isSelected ? null : member)}
-              className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                isSelected
-                  ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500 shadow-sm'
-                  : 'border-slate-200/80 bg-slate-50/60 hover:bg-slate-100/70 hover:border-slate-300'
-              }`}
-              title={`Click to filter board by ${member}`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span
-                  className={`inline-flex items-center justify-center h-7 w-7 rounded-full border text-[11px] font-bold shrink-0 ${colors.bg} ${colors.text} ${colors.border}`}
-                >
-                  {getInitials(member)}
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-slate-900 truncate">
-                      {member}
-                    </span>
-                    {activeTask && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" title="Actively driving" />
-                    )}
-                  </div>
-                  <p className="text-[11px] text-slate-500 truncate">
-                    {activeTask ? (
-                      <span>Driving: <span className="text-slate-700 font-medium">{activeTask.title}</span></span>
-                    ) : (
-                      <span>{memberTasks.length} {memberTasks.length === 1 ? 'task' : 'tasks'} assigned</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold bg-white border border-slate-200 text-slate-600 shrink-0">
-                {memberTasks.length}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-/**
- * AnchorBoard Component (FR10 - FR13)
+ * AnchorBoard Component
  */
 function AnchorBoard({ anchors, onUpdateAnchor }) {
   const [editingId, setEditingId] = useState(null);
@@ -1018,7 +1178,7 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
                     type="button"
                     onClick={() => handleStartEdit(anchor)}
                     className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors"
-                    title={`Edit ${anchor.label} link (FR12)`}
+                    title={`Edit ${anchor.label} link`}
                   >
                     <EditIcon className="w-3 h-3" />
                   </button>
@@ -1072,7 +1232,7 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
                       onClick={() => handleStartEdit(anchor)}
                       className="text-xs text-slate-400 hover:text-indigo-600 font-medium flex items-center gap-1 transition-colors"
                     >
-                      <span>+ Add deliverable URL (FR11)</span>
+                      <span>+ Add deliverable URL</span>
                     </button>
                   )}
                 </div>
@@ -1086,13 +1246,25 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
 }
 
 /**
- * TaskCard Component with Quick Move (FR21), Handoff (FR23), and Urgency Indication (FR25)
+ * TaskCard Component with Quick Move, Handoff, Drag & Drop, and Urgency Indication
  */
-function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, onMoveTask, isCopied, teamMembers }) {
+function TaskCard({
+  task,
+  onSelect,
+  onHandoff,
+  onCopyPrompt,
+  onMoveTask,
+  isCopied,
+  teamMembers,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+}) {
   const isBug = task.type === 'bug';
   const ownerColors = getMemberColors(task.assignee);
   const dueInfo = getDueStatus(task.dueDate, task.status);
   const hasContext = Boolean(task.context && task.context.trim().length > 0);
+  const dragActiveRef = useRef(false);
 
   const currentStageIndex = STAGES.findIndex((s) => s.id === task.status);
   const prevStage = currentStageIndex > 0 ? STAGES[currentStageIndex - 1] : null;
@@ -1100,10 +1272,28 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, onMoveTask, isCopie
 
   return (
     <article
-      onClick={() => onSelect && onSelect(task)}
-      className={`rounded-lg border p-3.5 shadow-sm hover:shadow transition-all cursor-pointer flex flex-col gap-2.5 text-left group border-l-4 ${
+      draggable={true}
+      onDragStart={(e) => {
+        dragActiveRef.current = true;
+        e.dataTransfer.setData('text/plain', task.id);
+        e.dataTransfer.effectAllowed = 'move';
+        onDragStart && onDragStart(task.id);
+      }}
+      onDragEnd={() => {
+        setTimeout(() => {
+          dragActiveRef.current = false;
+        }, 120);
+        onDragEnd && onDragEnd();
+      }}
+      onClick={() => {
+        if (dragActiveRef.current) return;
+        onSelect && onSelect(task);
+      }}
+      className={`rounded-lg border p-3.5 shadow-sm hover:shadow transition-all cursor-grab active:cursor-grabbing flex flex-col gap-2.5 text-left group border-l-4 ${
         isBug ? 'border-l-bug' : 'border-l-feature'
-      } ${dueInfo.tintClass}`}
+      } ${dueInfo.tintClass} ${
+        isDragging ? 'opacity-40 scale-[0.98] border-dashed border-indigo-400 shadow-none' : ''
+      }`}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -1113,25 +1303,32 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, onMoveTask, isCopie
         }
       }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-mono text-xs font-semibold text-slate-500 group-hover:text-slate-700">
-            {task.id}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-wrap">
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+              isBug
+                ? 'bg-red-50 text-bug border border-red-200'
+                : 'bg-sky-50 text-feature border border-sky-200'
+            }`}
+          >
+            {isBug ? <BugIcon className="w-3 h-3 text-bug" /> : <FeatureIcon className="w-3 h-3 text-feature" />}
+            <span>{task.type}</span>
           </span>
           {hasContext && (
             <span
-              className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded"
+              className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-1 rounded-md"
               title={`AI Context attached (${task.contextTool || 'General'})`}
             >
-              <PromptContextIcon className="w-2.5 h-2.5 text-indigo-600" />
+              <PromptContextIcon className="w-3 h-3 text-indigo-600" />
               <span>{task.contextTool || 'AI'}</span>
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {/* Quick Column Shift (FR21) */}
-          <div className="flex items-center bg-slate-100 rounded p-0.5 border border-slate-200" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Quick Column Shift */}
+          <div className="flex items-center bg-slate-100 rounded-md p-1 gap-1 border border-slate-200" onClick={(e) => e.stopPropagation()}>
             {prevStage && (
               <button
                 type="button"
@@ -1139,7 +1336,7 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, onMoveTask, isCopie
                 className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-white transition-colors"
                 title={`Move to ${prevStage.label}`}
               >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -1151,49 +1348,12 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, onMoveTask, isCopie
                 className="p-1 rounded text-slate-500 hover:text-indigo-600 hover:bg-white transition-colors"
                 title={`Move to ${nextStage.label}`}
               >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCopyPrompt(task);
-            }}
-            className={`inline-flex items-center gap-1 text-[11px] font-medium border rounded px-1.5 py-0.5 transition-all shadow-2xs ${
-              isCopied
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold'
-                : 'bg-white hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 border-slate-200 hover:border-indigo-200'
-            }`}
-            title="Copy task + prompt context for AI (FR33)"
-          >
-            {isCopied ? (
-              <>
-                <CheckIcon className="w-3 h-3 text-emerald-600" />
-                <span className="text-[10px]">Copied</span>
-              </>
-            ) : (
-              <>
-                <CopyIcon className="w-3 h-3 text-slate-500 group-hover:text-indigo-600" />
-                <span className="text-[10px]">Copy</span>
-              </>
-            )}
-          </button>
-
-          <span
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
-              isBug
-                ? 'bg-red-50 text-bug border border-red-200'
-                : 'bg-sky-50 text-feature border border-sky-200'
-            }`}
-          >
-            {isBug ? <BugIcon className="w-2.5 h-2.5 text-bug" /> : <FeatureIcon className="w-2.5 h-2.5 text-feature" />}
-            <span>{task.type}</span>
-          </span>
         </div>
       </div>
 
@@ -1244,7 +1404,7 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, onMoveTask, isCopie
               }
             }}
             className="text-[11px] font-medium bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer transition-colors shadow-2xs"
-            title="Hand off task to a teammate (FR23)"
+            title="Hand off task to a teammate"
           >
             <option value="" disabled>
               Hand off to...
@@ -1262,7 +1422,7 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, onMoveTask, isCopie
 }
 
 /**
- * TaskModal Component supporting Markdown view (FR34), AI Context (FR30 - FR33)
+ * TaskModal Component supporting Markdown preview and AI Context
  */
 function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, onDelete, onCopyPrompt, isCopied, teamMembers }) {
   const [formData, setFormData] = useState({
@@ -1568,7 +1728,7 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
               </div>
 
               <div className="flex items-center gap-1.5">
-                {/* Markdown View Toggle (FR34) */}
+                {/* Markdown View Toggle */}
                 <div className="bg-slate-100 p-0.5 rounded flex items-center border border-slate-200">
                   <button
                     type="button"
@@ -1607,7 +1767,7 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
                     })
                   }
                   className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors shadow-2xs"
-                  title="Copy as formatted Prompt Context (FR33)"
+                  title="Copy as formatted Prompt Context"
                 >
                   {isCopied ? (
                     <>
@@ -1647,7 +1807,7 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
                   onClick={handleDelete}
                   className="px-3 py-2 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
                 >
-                  Delete Task (FR17)
+                  Delete Task
                 </button>
               )}
             </div>
@@ -1679,8 +1839,24 @@ export default function App() {
   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', INITIAL_TASKS);
   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', INITIAL_ANCHORS);
 
+  // Prototype User Account System: active user + account list
+  const [currentUser, setCurrentUser] = useLocalStorage('vibetracker.current_user', 'Saayam Mehmood');
+  const [accounts, setAccounts] = useLocalStorage('vibetracker.accounts', TEAM);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [copiedInviteCode, setCopiedInviteCode] = useState(false);
+  const userMenuRef = useRef(null);
+
+  // Landing / Login Screen state (prompt on session start or when logged out)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    try {
+      return window.sessionStorage.getItem('vibetracker.session_active') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   // Active view tab: 'dashboard' | 'kanban' | 'members'
-  const [activeTab, setActiveTab] = useState('kanban');
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   // Mobile sidebar toggle
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -1695,35 +1871,53 @@ export default function App() {
 
   const [activeToast, setActiveToast] = useState(null);
   const [copiedTaskId, setCopiedTaskId] = useState(null);
+  const [draggingTaskId, setDraggingTaskId] = useState(null);
+  const [dragOverStageId, setDragOverStageId] = useState(null);
 
-  // Kanban filters (FR27, FR28, FR29)
+  // Kanban filters
   const [filterAssignee, setFilterAssignee] = useState(null);
   const [filterType, setFilterType] = useState('all'); // 'all' | 'feature' | 'bug'
   const [filterDueStatus, setFilterDueStatus] = useState('all'); // 'all' | 'overdue' | 'due24' | 'safe'
 
-  // Invite member input for Members tab (FR38)
-  const [newMemberName, setNewMemberName] = useState('');
+  // Close user account dropdown on outside click
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userMenuOpen]);
 
-  // Ensure active project exists or fallback to first
-  const currentProject = projects.find((p) => p.id === activeProjectId) || projects[0] || {
-    id: 'proj-default',
-    name: 'General Project',
-    description: '',
-    manager: 'Saayam Mehmood',
-    members: TEAM,
-  };
+  // Available prototype accounts
+  const availableAccounts = Array.from(new Set([...accounts, ...TEAM]));
 
-  // Derive dynamic project members and manager (FR35 - FR39)
-  const projectMembers = currentProject.members && currentProject.members.length > 0
+  // Project Access Control: Only projects where currentUser is in members or is a manager
+  const accessibleProjects = projects.filter((project) => {
+    const members = project.members && project.members.length > 0 ? project.members : TEAM;
+    return members.includes(currentUser) || isProjectManager(project, currentUser);
+  });
+
+  // Ensure currentProject is an accessible project or fallback to first accessible
+  const currentProject = accessibleProjects.find((p) => p.id === activeProjectId) || accessibleProjects[0] || null;
+
+  // Derive dynamic project members and managers for the active project
+  const projectMembers = currentProject?.members && currentProject.members.length > 0
     ? currentProject.members
-    : TEAM;
-  const projectManager = currentProject.manager || projectMembers[0] || 'Saayam Mehmood';
+    : (currentProject ? [currentUser] : []);
+  const projectManagers = getProjectManagers(currentProject);
+  const isCurrentUserPM = isProjectManager(currentProject, currentUser);
 
   // Filter tasks belonging to current active project
-  const projectTasks = tasks.filter((t) => (t.projectId || projects[0]?.id) === currentProject.id);
+  const projectTasks = currentProject
+    ? tasks.filter((t) => (t.projectId || projects[0]?.id) === currentProject.id)
+    : [];
 
   // Filter anchors for active project
   const currentProjectAnchors = (() => {
+    if (!currentProject) return [];
     const existing = anchors.filter((a) => (a.projectId || projects[0]?.id) === currentProject.id);
     if (existing.length === 4) return existing;
     return [
@@ -1740,9 +1934,8 @@ export default function App() {
   const remainingCount = projectTasks.length - doneCount;
   const overdueTasks = projectTasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'overdue');
   const overdueCount = overdueTasks.length;
-  const warningCount = projectTasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'warning').length;
 
-  // Upcoming deadlines for Dashboard (FR7)
+  // Upcoming deadlines for Dashboard
   const upcomingDeadlineTasks = projectTasks
     .filter((t) => t.status !== 'done' && t.dueDate)
     .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
@@ -1754,84 +1947,220 @@ export default function App() {
     }, 3500);
   };
 
-  // FR1: Create new project (creator becomes PM - FR36)
-  const handleCreateProject = (name, description) => {
+  // Create new project (Name only - random string invite code generated)
+  const handleCreateProject = (name) => {
+    const inviteCode = generateRandomCode(6);
     const newProj = {
       id: `proj-${Date.now()}`,
       name,
-      description: description || '',
       createdAt: new Date().toISOString().slice(0, 10),
-      manager: 'Saayam Mehmood', // Auto assigned PM role to creator (FR36)
-      members: ['Saayam Mehmood', 'Teammate B', 'Teammate C'],
+      managers: [currentUser],
+      manager: currentUser,
+      members: [currentUser],
+      inviteCode,
     };
     setProjects((prev) => [...prev, newProj]);
     setActiveProjectId(newProj.id);
     setActiveTab('dashboard');
-    showToast(`Project "${name}" created`);
+    showToast(`Project "${name}" created (Code: ${inviteCode})`);
   };
 
-  // FR2: Edit existing project details
-  const handleEditProject = (projId, newName, newDesc) => {
+  // Join existing project using Invite Code
+  const handleJoinProject = (code) => {
+    const targetCode = code.trim().toUpperCase();
+    const foundProject = projects.find((p) => {
+      const projCode = p.inviteCode || 'K9X2B7';
+      return projCode.toUpperCase() === targetCode;
+    });
+
+    if (!foundProject) {
+      showToast('Invalid invite code. Please check and try again.');
+      return;
+    }
+
+    const existingMembers = foundProject.members || [foundProject.manager || 'Saayam Mehmood'];
+    if (existingMembers.includes(currentUser)) {
+      setActiveProjectId(foundProject.id);
+      showToast(`You are already a member of "${foundProject.name}"`);
+      return;
+    }
+
+    const updatedMembers = [...existingMembers, currentUser];
     setProjects((prev) =>
       prev.map((p) =>
-        p.id === projId ? { ...p, name: newName, description: newDesc } : p
+        p.id === foundProject.id ? { ...p, members: updatedMembers } : p
       )
     );
-    showToast(`Project details updated`);
+    setActiveProjectId(foundProject.id);
+    setActiveTab('dashboard');
+    showToast(`Joined project "${foundProject.name}"!`);
   };
 
-  // FR3: Delete existing project
+  // Copy Project Invite Code to Clipboard
+  const handleCopyInviteCode = async (code) => {
+    const codeToCopy = code || currentProject?.inviteCode || 'K9X2B7';
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(codeToCopy);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = codeToCopy;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedInviteCode(true);
+      showToast(`Invite code ${codeToCopy} copied to clipboard`);
+      setTimeout(() => setCopiedInviteCode(false), 2500);
+    } catch {
+      showToast(`Invite code: ${codeToCopy}`);
+    }
+  };
+
+  // Regenerate Project Invite Code (PM only)
+  const handleRegenerateInviteCode = () => {
+    if (!currentProject || !isCurrentUserPM) return;
+    const newCode = generateRandomCode(6);
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === currentProject.id ? { ...p, inviteCode: newCode } : p
+      )
+    );
+    showToast(`New invite code generated: ${newCode}`);
+  };
+
+  // Promote team member to Project Manager
+  const handlePromoteMember = (memberName) => {
+    if (!currentProject || !isCurrentUserPM) return;
+    const currentManagers = getProjectManagers(currentProject);
+    if (currentManagers.includes(memberName)) return;
+    const updatedManagers = [...currentManagers, memberName];
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === currentProject.id
+          ? { ...p, managers: updatedManagers, manager: updatedManagers[0] }
+          : p
+      )
+    );
+    showToast(`${memberName} promoted to Project Manager`);
+  };
+
+  // Demote Project Manager to regular member
+  const handleDemoteMember = (memberName) => {
+    if (!currentProject || !isCurrentUserPM) return;
+    const currentManagers = getProjectManagers(currentProject);
+    if (currentManagers.length <= 1) {
+      alert('A project must have at least one Project Manager.');
+      return;
+    }
+    if (!window.confirm(`Demote ${memberName} from Project Manager to Team Member?`)) {
+      return;
+    }
+    const updatedManagers = currentManagers.filter((m) => m !== memberName);
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === currentProject.id
+          ? { ...p, managers: updatedManagers, manager: updatedManagers[0] }
+          : p
+      )
+    );
+    showToast(`${memberName} demoted to Team Member`);
+  };
+
+  // Delete User Account (Available once logged in)
+  const handleDeleteAccount = (targetUser = currentUser) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete your account "${targetUser}"? This will remove this profile from all project memberships.`
+      )
+    ) {
+      return;
+    }
+
+    const updatedAccounts = accounts.filter((a) => a !== targetUser);
+    const fallbackList = updatedAccounts.length > 0 ? updatedAccounts : ['Saayam Mehmood'];
+    setAccounts(fallbackList);
+
+    // Remove user from all project rosters and reassign management if necessary
+    setProjects((prev) =>
+      prev.map((p) => {
+        const newMembers = (p.members || []).filter((m) => m !== targetUser);
+        const currentPMs = getProjectManagers(p).filter((m) => m !== targetUser);
+        const newPMs = currentPMs.length > 0 ? currentPMs : (newMembers.length > 0 ? [newMembers[0]] : [fallbackList[0]]);
+        return {
+          ...p,
+          members: newMembers.length > 0 ? newMembers : [newPMs[0]],
+          managers: newPMs,
+          manager: newPMs[0],
+        };
+      })
+    );
+
+    // Reassign tasks
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.assignee === targetUser ? { ...t, assignee: fallbackList[0] } : t
+      )
+    );
+
+    if (targetUser === currentUser) {
+      setIsLoggedIn(false);
+      setUserMenuOpen(false);
+      try {
+        window.sessionStorage.removeItem('vibetracker.session_active');
+      } catch {}
+      setCurrentUser(fallbackList[0]);
+      showToast(`Account "${targetUser}" deleted. Signed out.`);
+    } else {
+      showToast(`Profile "${targetUser}" deleted`);
+    }
+  };
+
+  // Edit existing project name (No description)
+  const handleEditProject = (projId, newName) => {
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === projId ? { ...p, name: newName } : p
+      )
+    );
+    showToast(`Project renamed to "${newName}"`);
+  };
+
+  // Delete existing project
   const handleDeleteProject = (projId) => {
     if (projects.length <= 1) return;
     if (window.confirm('Delete this project and all its tasks?')) {
       setProjects((prev) => prev.filter((p) => p.id !== projId));
       setTasks((prev) => prev.filter((t) => t.projectId !== projId));
       if (activeProjectId === projId) {
-        const remaining = projects.filter((p) => p.id !== projId);
-        setActiveProjectId(remaining[0].id);
+        const remaining = accessibleProjects.filter((p) => p.id !== projId);
+        if (remaining.length > 0) {
+          setActiveProjectId(remaining[0].id);
+        }
       }
       showToast('Project deleted');
     }
   };
 
-  // FR38: Invite new member to project
-  const handleInviteMember = (e) => {
-    e.preventDefault();
-    const trimmed = newMemberName.trim();
-    if (!trimmed) return;
-    if (projectMembers.includes(trimmed)) {
-      showToast(`${trimmed} is already a member`);
-      return;
-    }
-
-    const updatedMembers = [...projectMembers, trimmed];
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === currentProject.id ? { ...p, members: updatedMembers } : p
-      )
-    );
-    setNewMemberName('');
-    showToast(`${trimmed} invited to project`);
-  };
-
-  // FR39: Remove member from project
+  // Remove member from project (revokes access)
   const handleRemoveMember = (memberName) => {
-    if (memberName === projectManager) {
-      alert('The Project Manager cannot be removed.');
+    if (!currentProject) return;
+    if (isProjectManager(currentProject, memberName)) {
+      alert('Demote the Project Manager to a Team Member before removing them from the project.');
       return;
     }
-    if (window.confirm(`Remove ${memberName} from this project?`)) {
+    if (window.confirm(`Remove ${memberName} from this project? They will no longer have access.`)) {
       const updatedMembers = projectMembers.filter((m) => m !== memberName);
       setProjects((prev) =>
         prev.map((p) =>
           p.id === currentProject.id ? { ...p, members: updatedMembers } : p
         )
       );
-      // Reassign any tasks assigned to this member to project manager
       setTasks((prev) =>
         prev.map((t) =>
           t.projectId === currentProject.id && t.assignee === memberName
-            ? { ...t, assignee: projectManager }
+            ? { ...t, assignee: projectManagers[0] }
             : t
         )
       );
@@ -1865,8 +2194,10 @@ export default function App() {
     showToast(`Task handed off to ${newOwner}`);
   };
 
-  // FR21: Move task between columns
+  // Move task between columns
   const handleMoveTask = (taskId, targetStatus) => {
+    const existing = tasks.find((t) => t.id === taskId);
+    if (existing && existing.status === targetStatus) return;
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: targetStatus } : t))
     );
@@ -1889,6 +2220,7 @@ export default function App() {
   };
 
   const handleSaveTask = (taskToSave) => {
+    if (!currentProject) return;
     if (modalState.mode === 'create') {
       const taskWithProject = {
         ...taskToSave,
@@ -1922,6 +2254,7 @@ export default function App() {
   };
 
   const handleUpdateAnchor = (id, newUrl) => {
+    if (!currentProject) return;
     setAnchors((prev) => {
       const exists = prev.some((a) => a.id === id && (a.projectId || projects[0]?.id) === currentProject.id);
       if (exists) {
@@ -1945,7 +2278,7 @@ export default function App() {
     showToast(newUrl ? 'Deliverable link updated' : 'Deliverable link removed');
   };
 
-  // Filter tasks based on member (FR27), type (FR28), and due date status (FR29)
+  // Filter tasks based on member, type, and due date status
   const displayedTasks = projectTasks.filter((task) => {
     if (filterAssignee && task.assignee !== filterAssignee) return false;
     if (filterType !== 'all' && task.type !== filterType) return false;
@@ -1960,13 +2293,41 @@ export default function App() {
   });
 
   const isFiltering = Boolean(filterAssignee || filterType !== 'all' || filterDueStatus !== 'all');
+  const currentUserColors = getMemberColors(currentUser);
+
+  // If user has not selected profile yet on open, show Landing Login Screen (No deletion buttons)
+  if (!isLoggedIn) {
+    return (
+      <LandingLoginScreen
+        accounts={availableAccounts}
+        projects={projects}
+        onSelectUser={(userName) => {
+          setCurrentUser(userName);
+          setIsLoggedIn(true);
+          try {
+            window.sessionStorage.setItem('vibetracker.session_active', 'true');
+          } catch {}
+          showToast(`Signed in as ${userName}`);
+        }}
+        onAddUser={(newUserName) => {
+          setAccounts((prev) => Array.from(new Set([...prev, newUserName])));
+          setCurrentUser(newUserName);
+          setIsLoggedIn(true);
+          try {
+            window.sessionStorage.setItem('vibetracker.session_active', 'true');
+          } catch {}
+          showToast(`Created profile and signed in as ${newUserName}`);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
-      {/* Sidebar for Projects (FR4 & FR5) */}
+      {/* Sidebar for Projects (Only displays projects accessible to currentUser) */}
       <ProjectSidebar
-        projects={projects}
-        activeProjectId={currentProject.id}
+        projects={accessibleProjects}
+        activeProjectId={currentProject?.id || null}
         onSelectProject={(id) => {
           setActiveProjectId(id);
           setFilterAssignee(null);
@@ -1974,6 +2335,7 @@ export default function App() {
           setFilterDueStatus('all');
         }}
         onCreateProject={handleCreateProject}
+        onJoinProject={handleJoinProject}
         onEditProject={handleEditProject}
         onDeleteProject={handleDeleteProject}
         tasks={tasks}
@@ -1983,14 +2345,14 @@ export default function App() {
 
       {/* Main View Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Compact Top Bar */}
-        <header className="h-14 bg-white border-b border-slate-200/90 px-4 md:px-6 flex items-center justify-between gap-4 shrink-0 shadow-2xs">
-          <div className="flex items-center gap-3 min-w-0">
+        {/* Top Bar with Project Breadcrumb, Navigation Tabs, and User Account Switcher */}
+        <header className="h-14 bg-white border-b border-slate-200/90 px-3 md:px-6 flex items-center justify-between gap-2 md:gap-4 shrink-0 shadow-2xs">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
             {/* Mobile Hamburger */}
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
-              className="md:hidden text-slate-500 hover:text-slate-800 p-1 rounded hover:bg-slate-100"
+              className="md:hidden text-slate-500 hover:text-slate-800 p-1 rounded hover:bg-slate-100 shrink-0"
               title="Open projects sidebar"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1999,228 +2361,383 @@ export default function App() {
             </button>
 
             {/* Active Project Title */}
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-semibold text-slate-400 hidden sm:inline uppercase tracking-wider">Project /</span>
+            <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
+              <span className="text-xs font-semibold text-slate-400 hidden lg:inline uppercase tracking-wider">Project /</span>
               <h1 className="text-sm md:text-base font-bold text-slate-900 truncate">
-                {currentProject.name}
+                {currentProject ? currentProject.name : 'No Accessible Project'}
               </h1>
             </div>
           </div>
 
           {/* Section Navigation Tabs: Dashboard, Kanban, Members */}
-          <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200/80">
+          {currentProject && (
+            <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200/80 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveTab('dashboard')}
+                className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  activeTab === 'dashboard'
+                    ? 'bg-white text-indigo-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                </svg>
+                <span className="hidden sm:inline">Dashboard</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('kanban')}
+                className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  activeTab === 'kanban'
+                    ? 'bg-white text-indigo-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+                <span className="hidden sm:inline">Kanban</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('members')}
+                className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  activeTab === 'members'
+                    ? 'bg-white text-indigo-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span className="hidden sm:inline">Members</span>
+              </button>
+            </nav>
+          )}
+
+          {/* User Account Switcher in Top Right Corner */}
+          <div className="relative shrink-0" ref={userMenuRef}>
             <button
               type="button"
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                activeTab === 'dashboard'
-                  ? 'bg-white text-indigo-700 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
+              onClick={() => setUserMenuOpen((prev) => !prev)}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 transition-all text-xs font-medium text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              title="Switch user account (Prototype)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+              <span
+                className={`inline-flex items-center justify-center h-6 w-6 rounded-full border text-[10px] font-bold shrink-0 ${currentUserColors.bg} ${currentUserColors.text} ${currentUserColors.border}`}
+              >
+                {getInitials(currentUser)}
+              </span>
+              <div className="text-left hidden md:block min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="block text-xs font-bold text-slate-900 leading-none truncate max-w-[120px]">
+                    {currentUser}
+                  </span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" title="Online" />
+                </div>
+                <span className="block text-[10px] text-slate-400 font-normal leading-tight mt-0.5">
+                  {currentProject && isCurrentUserPM ? 'Project Manager' : 'Team Member'}
+                </span>
+              </div>
+              <svg
+                className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
               </svg>
-              <span>Dashboard</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                activeTab === 'kanban'
-                  ? 'bg-white text-indigo-700 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-              </svg>
-              <span>Kanban</span>
-            </button>
+            {/* Dropdown Menu for Switching Accounts & Account Deletion */}
+            {userMenuOpen && (
+              <div
+                className="absolute right-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1.5 overflow-hidden animate-in fade-in duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Active Account Header */}
+                <div className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Logged In As
+                  </span>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`inline-flex items-center justify-center h-8 w-8 rounded-full border text-xs font-bold shrink-0 ${currentUserColors.bg} ${currentUserColors.text} ${currentUserColors.border}`}>
+                      {getInitials(currentUser)}
+                    </span>
+                    <div className="min-w-0">
+                      <span className="block text-xs font-bold text-slate-900 truncate">{currentUser}</span>
+                      <span className="block text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
+                        Active Profile
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('members')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                activeTab === 'members'
-                  ? 'bg-white text-indigo-700 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              <span>Members</span>
-            </button>
-          </nav>
+                {/* Switch Account List */}
+                <div className="p-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1 block">
+                    Switch Account
+                  </span>
+                  <div className="space-y-0.5 mt-0.5 max-h-44 overflow-y-auto">
+                    {availableAccounts.map((account) => {
+                      const isCurrent = account === currentUser;
+                      const colors = getMemberColors(account);
+                      const isManager = isProjectManager(currentProject, account);
+
+                      return (
+                        <button
+                          key={account}
+                          type="button"
+                          onClick={() => {
+                            setCurrentUser(account);
+                            setUserMenuOpen(false);
+                            showToast(`Switched account to ${account}`);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors text-left ${
+                            isCurrent
+                              ? 'bg-indigo-50 text-indigo-900 font-semibold'
+                              : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className={`inline-flex items-center justify-center h-6 w-6 rounded-full border text-[10px] font-bold shrink-0 ${colors.bg} ${colors.text} ${colors.border}`}>
+                              {getInitials(account)}
+                            </span>
+                            <div className="min-w-0">
+                              <span className="block truncate leading-tight">{account}</span>
+                              {isManager && (
+                                <span className="block text-[9px] text-amber-600 font-normal">Project Manager</span>
+                              )}
+                            </div>
+                          </div>
+                          {isCurrent && (
+                            <CheckIcon className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Actions: Log Out / Switch Profile & Delete Account */}
+                  <div className="pt-2 mt-1 border-t border-slate-100 space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLoggedIn(false);
+                        setUserMenuOpen(false);
+                        try {
+                          window.sessionStorage.removeItem('vibetracker.session_active');
+                        } catch {}
+                        showToast('Logged out');
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-slate-700 hover:bg-slate-100 transition-colors font-medium"
+                    >
+                      <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      <span>Log Out / Switch Profile</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAccount(currentUser)}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-red-600 hover:bg-red-50 transition-colors font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Delete My Account</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </header>
 
         {/* Tab Content Area */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {/* TAB 1: DASHBOARD (FR6 - FR13) */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6 max-w-6xl mx-auto">
-              {/* Project Header Card */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-1.5 max-w-2xl">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
-                        Active Project
-                      </span>
-                      <span className="text-xs text-slate-400">Created {currentProject.createdAt || 'recently'}</span>
-                      <span className="text-xs text-slate-400">· PM: <strong className="text-slate-700">{projectManager}</strong></span>
-                    </div>
-                    <h2 className="text-xl font-bold text-slate-900">
-                      {currentProject.name}
-                    </h2>
-                    <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
-                      {currentProject.description || 'No description provided for this project yet. Edit or add details from the sidebar.'}
-                    </p>
-                  </div>
-
-                  {/* Completion Rate Badge */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center gap-4 shrink-0">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Completion Rate</span>
-                      <span className="text-2xl font-black text-indigo-600">
-                        {projectTasks.length > 0 ? Math.round((doneCount / projectTasks.length) * 100) : 0}%
-                      </span>
-                    </div>
-                    <div className="w-20 h-2 bg-slate-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-indigo-600 transition-all duration-300"
-                        style={{ width: `${projectTasks.length > 0 ? (doneCount / projectTasks.length) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Progress Statistics (FR8 & FR9) */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100">
-                  <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
-                    <span className="text-xs text-slate-500 font-medium block">Total Tasks</span>
-                    <span className="text-xl font-bold text-slate-900 mt-0.5 block">{projectTasks.length}</span>
-                    <span className="text-[10px] text-slate-400">{featureCount} features, {bugCount} bugs</span>
-                  </div>
-
-                  <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-lg p-3">
-                    <span className="text-xs text-emerald-800 font-medium block">Completed Tasks</span>
-                    <span className="text-xl font-bold text-emerald-600 mt-0.5 block">{doneCount}</span>
-                    <span className="text-[10px] text-emerald-700 font-medium">Shipped & Done</span>
-                  </div>
-
-                  <div className="bg-sky-50/50 border border-sky-200/80 rounded-lg p-3">
-                    <span className="text-xs text-sky-800 font-medium block">Remaining Tasks</span>
-                    <span className="text-xl font-bold text-sky-700 mt-0.5 block">{remainingCount}</span>
-                    <span className="text-[10px] text-sky-600 font-medium">In flight & planned</span>
-                  </div>
-
-                  <div className={`rounded-lg p-3 border ${
-                    overdueCount > 0 ? 'bg-red-50/70 border-red-200 text-red-900' : 'bg-slate-50 border-slate-200/80 text-slate-900'
-                  }`}>
-                    <span className={`text-xs font-medium block ${overdueCount > 0 ? 'text-red-700 font-semibold' : 'text-slate-500'}`}>
-                      Overdue Tasks (FR9)
-                    </span>
-                    <span className={`text-xl font-bold mt-0.5 block ${overdueCount > 0 ? 'text-red-600' : 'text-slate-900'}`}>
-                      {overdueCount}
-                    </span>
-                    <span className={`text-[10px] ${overdueCount > 0 ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
-                      {overdueCount > 0 ? 'Needs immediate attention' : 'No overdue tasks'}
-                    </span>
-                  </div>
-                </div>
+          {/* EMPTY STATE: User is not a member of any project */}
+          {!currentProject && (
+            <div className="max-w-md mx-auto my-16 text-center bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              <div className="h-16 w-16 mx-auto rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
+                <LockIcon className="w-8 h-8" />
               </div>
-
-              {/* Upcoming Deadlines & Project Activity Overview (FR7) */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Upcoming Deadlines & Project Schedule (FR7)
-                    </h3>
-                    <span className="text-xs text-slate-400">· Timeline monitor</span>
-                  </div>
-                  <span className="text-xs text-slate-500">
-                    {upcomingDeadlineTasks.length} {upcomingDeadlineTasks.length === 1 ? 'task' : 'tasks'} scheduled
-                  </span>
-                </div>
-
-                {upcomingDeadlineTasks.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                    {upcomingDeadlineTasks.map((task) => {
-                      const dueInfo = getDueStatus(task.dueDate, task.status);
-                      const isOverdue = dueInfo.state === 'overdue';
-                      const isWarning = dueInfo.state === 'warning';
-
-                      return (
-                        <div
-                          key={task.id}
-                          onClick={() => handleOpenEditModal(task)}
-                          className={`p-3 rounded-lg border transition-all cursor-pointer hover:shadow-xs flex flex-col justify-between gap-2 ${
-                            isOverdue
-                              ? 'bg-red-50/40 border-red-200'
-                              : isWarning
-                              ? 'bg-amber-50/40 border-amber-200'
-                              : 'bg-slate-50/60 border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="font-mono text-[10px] text-slate-400 font-semibold">{task.id}</span>
-                            <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${dueInfo.badgeClass}`}>
-                              <ClockIcon className="w-2.5 h-2.5" />
-                              <span>{dueInfo.label}</span>
-                            </span>
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-semibold text-slate-900 truncate">{task.title}</h4>
-                            <p className="text-[11px] text-slate-500 truncate mt-0.5">Assigned to {task.assignee}</p>
-                          </div>
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-200/60">
-                            <span>Due {task.dueDate}</span>
-                            <span className="capitalize font-medium text-slate-600">{task.status}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-lg text-xs text-slate-400">
-                    No active tasks with due dates in this project. Assign dates in the Kanban board to track deadlines here.
-                  </div>
-                )}
+              <div className="space-y-1">
+                <h2 className="text-lg font-bold text-slate-900">No Accessible Projects</h2>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  You are signed in as <strong className="text-slate-800">{currentUser}</strong>. People who are not members of a project cannot view or modify its deliverables or tasks.
+                </p>
               </div>
-
-              {/* Deliverable Anchor Board (FR10 - FR13) */}
-              <AnchorBoard
-                anchors={currentProjectAnchors}
-                onUpdateAnchor={handleUpdateAnchor}
-              />
-
-              {/* Action Banner to Kanban */}
-              <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-xl p-5 shadow-sm flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-sm font-bold">Ready to work on tasks?</h3>
-                  <p className="text-xs text-slate-300 mt-0.5">
-                    Move tasks through To Do, In Progress, Review, and Done on the Kanban board.
-                  </p>
-                </div>
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('kanban')}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition-colors shadow-sm shrink-0"
+                  onClick={() => handleCreateProject(`New Project (${currentUser.split(' ')[0]})`)}
+                  className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
                 >
-                  Open Kanban Board →
+                  + Create New Project
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = window.prompt('Enter project invite code (e.g. K9X2B7):');
+                    if (code) handleJoinProject(code);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                >
+                  Join with Code
                 </button>
               </div>
             </div>
           )}
 
-          {/* TAB 2: KANBAN (FR14 - FR29) */}
-          {activeTab === 'kanban' && (
+          {/* TAB 1: DASHBOARD (Side-by-side Overview & Deadlines, Deliverables immediately visible) */}
+          {currentProject && activeTab === 'dashboard' && (
+            <div className="space-y-5 max-w-6xl mx-auto">
+              {/* Row 1: Side-by-Side 50/50 Grid (Project Progress & Upcoming Deadlines) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+                {/* Box 1: Project Header & Progress Stats (Half width) */}
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          Active Project
+                        </span>
+                        <span className="text-xs text-slate-400">Created {currentProject.createdAt || 'recently'}</span>
+                      </div>
+                      <h2 className="text-lg md:text-xl font-bold text-slate-900 truncate">
+                        {currentProject.name}
+                      </h2>
+                    </div>
+
+                    {/* Completion Rate Pill */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Done</span>
+                        <span className="text-lg font-black text-indigo-600 leading-none">
+                          {projectTasks.length > 0 ? Math.round((doneCount / projectTasks.length) * 100) : 0}%
+                        </span>
+                      </div>
+                      <div className="w-12 h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-600 transition-all duration-300"
+                          style={{ width: `${projectTasks.length > 0 ? (doneCount / projectTasks.length) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress Statistics Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-slate-100">
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2.5">
+                      <span className="text-[11px] text-slate-500 font-medium block">Total Tasks</span>
+                      <span className="text-lg font-bold text-slate-900 mt-0.5 block">{projectTasks.length}</span>
+                      <span className="text-[10px] text-slate-400">{featureCount}f · {bugCount}b</span>
+                    </div>
+
+                    <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-lg p-2.5">
+                      <span className="text-[11px] text-emerald-800 font-medium block">Completed</span>
+                      <span className="text-lg font-bold text-emerald-600 mt-0.5 block">{doneCount}</span>
+                      <span className="text-[10px] text-emerald-700 font-medium">Shipped</span>
+                    </div>
+
+                    <div className="bg-sky-50/50 border border-sky-200/80 rounded-lg p-2.5">
+                      <span className="text-[11px] text-sky-800 font-medium block">Remaining</span>
+                      <span className="text-lg font-bold text-sky-700 mt-0.5 block">{remainingCount}</span>
+                      <span className="text-[10px] text-sky-600 font-medium">In flight</span>
+                    </div>
+
+                    <div className={`rounded-lg p-2.5 border ${
+                      overdueCount > 0 ? 'bg-red-50/70 border-red-200 text-red-900' : 'bg-slate-50 border-slate-200/80 text-slate-900'
+                    }`}>
+                      <span className={`text-[11px] font-medium block ${overdueCount > 0 ? 'text-red-700 font-semibold' : 'text-slate-500'}`}>
+                        Overdue
+                      </span>
+                      <span className={`text-lg font-bold mt-0.5 block ${overdueCount > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                        {overdueCount}
+                      </span>
+                      <span className={`text-[10px] ${overdueCount > 0 ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
+                        {overdueCount > 0 ? 'Urgent' : 'All clear'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Box 2: Upcoming Deadlines (Half width side-by-side) */}
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                        Upcoming Deadlines
+                      </h3>
+                      <span className="text-xs text-slate-400">· Schedule monitor</span>
+                    </div>
+                    <span className="text-xs text-slate-500 font-medium">
+                      {upcomingDeadlineTasks.length} scheduled
+                    </span>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto max-h-44 space-y-2 pr-1">
+                    {upcomingDeadlineTasks.length > 0 ? (
+                      upcomingDeadlineTasks.map((task) => {
+                        const dueInfo = getDueStatus(task.dueDate, task.status);
+                        const isOverdue = dueInfo.state === 'overdue';
+                        const isWarning = dueInfo.state === 'warning';
+
+                        return (
+                          <div
+                            key={task.id}
+                            onClick={() => handleOpenEditModal(task)}
+                            className={`p-2.5 rounded-lg border transition-all cursor-pointer hover:shadow-2xs flex items-center justify-between gap-2.5 ${
+                              isOverdue
+                                ? 'bg-red-50/50 border-red-200'
+                                : isWarning
+                                ? 'bg-amber-50/50 border-amber-200'
+                                : 'bg-slate-50/60 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-semibold text-slate-900 truncate">{task.title}</h4>
+                              <p className="text-[10px] text-slate-500 truncate mt-0.5">Assigned to {task.assignee}</p>
+                            </div>
+
+                            <div className="shrink-0 text-right">
+                              <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${dueInfo.badgeClass}`}>
+                                <ClockIcon className="w-2.5 h-2.5" />
+                                <span>{dueInfo.label}</span>
+                              </span>
+                              <span className="block text-[10px] text-slate-400 mt-0.5">{task.dueDate}</span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-5 text-center border border-dashed border-slate-200 rounded-lg text-xs text-slate-400">
+                        No active tasks with upcoming deadlines in this project.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Anchor Deliverables Board (Immediately visible above the fold) */}
+              <AnchorBoard
+                anchors={currentProjectAnchors}
+                onUpdateAnchor={handleUpdateAnchor}
+              />
+            </div>
+          )}
+
+          {/* TAB 2: KANBAN */}
+          {currentProject && activeTab === 'kanban' && (
             <div className="space-y-4">
-              {/* Kanban Toolbar: Task metrics + Filter bar (FR27, FR28, FR29) + "+ New Task" */}
+              {/* Kanban Toolbar */}
               <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   {/* Task indicators */}
@@ -2239,26 +2756,18 @@ export default function App() {
                       <BugIcon className="w-3 h-3 text-bug" />
                       {bugCount} bugs
                     </span>
-                    {(overdueCount > 0 || warningCount > 0) && (
+                    {overdueCount > 0 && (
                       <>
                         <span className="text-slate-300">|</span>
-                        {overdueCount > 0 && (
-                          <span className="inline-flex items-center gap-1 font-semibold text-[#B91C1C]">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#B91C1C] animate-pulse" />
-                            {overdueCount} overdue
-                          </span>
-                        )}
-                        {warningCount > 0 && (
-                          <span className="inline-flex items-center gap-1 font-semibold text-[#D97706]">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#D97706]" />
-                            {warningCount} due soon
-                          </span>
-                        )}
+                        <span className="inline-flex items-center gap-1 font-semibold text-[#B91C1C]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#B91C1C] animate-pulse" />
+                          {overdueCount} overdue
+                        </span>
                       </>
                     )}
                   </div>
 
-                  {/* "+ New Task" Button (FR15) */}
+                  {/* "+ New Task" Button */}
                   <button
                     type="button"
                     onClick={() => handleOpenCreateModal('todo')}
@@ -2271,10 +2780,10 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Filter Controls Bar (FR27, FR28, FR29) */}
+                {/* Filter Controls Bar */}
                 <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
                   <div className="flex flex-wrap items-center gap-3">
-                    {/* FR27: Filter by Team Member */}
+                    {/* Filter by Team Member */}
                     <div className="flex items-center gap-1.5">
                       <label className="text-slate-500 font-medium">Assignee:</label>
                       <select
@@ -2291,7 +2800,7 @@ export default function App() {
                       </select>
                     </div>
 
-                    {/* FR28: Filter by Type */}
+                    {/* Filter by Type */}
                     <div className="flex items-center gap-1.5">
                       <label className="text-slate-500 font-medium">Type:</label>
                       <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200">
@@ -2325,7 +2834,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* FR29: Filter by Due Date Status */}
+                    {/* Filter by Due Date Status */}
                     <div className="flex items-center gap-1.5">
                       <label className="text-slate-500 font-medium">Due Date:</label>
                       <select
@@ -2358,22 +2867,40 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Team Activity Section (in Kanban) */}
-              <TeamActivitySection
-                team={projectMembers}
-                projectTasks={projectTasks}
-                filterAssignee={filterAssignee}
-                onToggleFilter={setFilterAssignee}
-              />
-
-              {/* Kanban Four-Column Board (FR14) */}
+              {/* Kanban Four-Column Board */}
               <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pb-6">
                 {STAGES.map((stage) => {
                   const stageTasks = displayedTasks.filter((t) => t.status === stage.id);
+                  const isDragOver = dragOverStageId === stage.id;
                   return (
                     <section
                       key={stage.id}
-                      className="bg-slate-100/80 rounded-xl p-3 border border-slate-200/70 flex flex-col"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDragEnter={(e) => {
+                        e.preventDefault();
+                        setDragOverStageId(stage.id);
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget)) return;
+                        if (dragOverStageId === stage.id) setDragOverStageId(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const taskId = e.dataTransfer.getData('text/plain');
+                        setDragOverStageId(null);
+                        setDraggingTaskId(null);
+                        if (taskId) {
+                          handleMoveTask(taskId, stage.id);
+                        }
+                      }}
+                      className={`rounded-xl p-3 border flex flex-col transition-all duration-150 ${
+                        isDragOver
+                          ? 'bg-indigo-50/70 border-indigo-400 ring-2 ring-indigo-400/40 shadow-sm'
+                          : 'bg-slate-100/80 border-slate-200/70'
+                      }`}
                     >
                       <div className="flex items-center justify-between px-1 py-1 mb-2.5">
                         <div className="flex items-center gap-2">
@@ -2396,7 +2923,7 @@ export default function App() {
                         </button>
                       </div>
 
-                      <div className="space-y-2.5 min-h-[120px]">
+                      <div className="space-y-2.5 min-h-[120px] max-h-[540px] overflow-y-auto pr-1 flex-1">
                         {stageTasks.length > 0 ? (
                           stageTasks.map((task) => (
                             <TaskCard
@@ -2408,11 +2935,23 @@ export default function App() {
                               onCopyPrompt={handleCopyPromptContext}
                               isCopied={copiedTaskId === task.id}
                               teamMembers={projectMembers}
+                              isDragging={draggingTaskId === task.id}
+                              onDragStart={(id) => setDraggingTaskId(id)}
+                              onDragEnd={() => {
+                                setDraggingTaskId(null);
+                                setDragOverStageId(null);
+                              }}
                             />
                           ))
                         ) : (
-                          <div className="flex items-center justify-center h-28 rounded-lg border-2 border-dashed border-slate-300/80 p-4 text-center text-xs text-slate-400 font-medium">
-                            {isFiltering
+                          <div className={`flex items-center justify-center h-28 rounded-lg border-2 border-dashed p-4 text-center text-xs font-medium transition-colors ${
+                            isDragOver
+                              ? 'border-indigo-400 bg-indigo-100/60 text-indigo-700'
+                              : 'border-slate-300/80 text-slate-400'
+                          }`}>
+                            {isDragOver
+                              ? `Drop task here for ${stage.label}`
+                              : isFiltering
                               ? `No matching tasks in ${stage.label}`
                               : 'Nothing here yet, continue coding'}
                           </div>
@@ -2425,10 +2964,10 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 3: MEMBERS (FR35 - FR39) - Team Activity removed per user request */}
-          {activeTab === 'members' && (
+          {/* TAB 3: MEMBERS */}
+          {currentProject && activeTab === 'members' && (
             <div className="space-y-6 max-w-6xl mx-auto">
-              {/* Project Management & Member Invite Bar (FR37 & FR38) */}
+              {/* Project Management & Invite Code Bar */}
               <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <span className="h-10 w-10 rounded-full bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center text-lg font-bold shrink-0">
@@ -2437,39 +2976,65 @@ export default function App() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                        Project Manager
+                        Project Manager{projectManagers.length > 1 ? 's' : ''}
                       </span>
-                      <span className="text-xs text-slate-400">Creator Role (FR36, FR37)</span>
                     </div>
                     <h3 className="text-sm font-bold text-slate-900 mt-0.5">
-                      {projectManager}
+                      {projectManagers.join(', ')}
                     </h3>
                   </div>
                 </div>
 
-                {/* Invite New Member Form (FR38) */}
-                <form onSubmit={handleInviteMember} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    required
-                    value={newMemberName}
-                    onChange={(e) => setNewMemberName(e.target.value)}
-                    placeholder="New member name..."
-                    className="text-xs px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-600 w-48"
-                  />
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-colors shrink-0"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>Invite Member</span>
-                  </button>
-                </form>
+                {/* Random String Project Invite Code Display & Copy */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Team Invite Code
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Share with teammates to join from their sidebar
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold bg-white text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-200 tracking-wider shadow-2xs select-all">
+                      {currentProject.inviteCode || 'K9X2B7'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyInviteCode(currentProject.inviteCode || 'K9X2B7')}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-colors shrink-0"
+                      title="Copy invite code"
+                    >
+                      {copiedInviteCode ? (
+                        <>
+                          <CheckIcon className="w-3.5 h-3.5 text-emerald-300" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <CopyIcon className="w-3.5 h-3.5" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+
+                    {isCurrentUserPM && (
+                      <button
+                        type="button"
+                        onClick={handleRegenerateInviteCode}
+                        className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-200/60 text-slate-500 hover:text-slate-800 transition-colors"
+                        title="Generate a new random invite code"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Members Detailed Roster & Workload Breakdown Cards (Retained and enhanced!) */}
+              {/* Members Detailed Roster & Workload Breakdown Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {projectMembers.map((member) => {
                   const memberTasks = projectTasks.filter((t) => t.assignee === member);
@@ -2478,12 +3043,15 @@ export default function App() {
                   const reviewTasks = memberTasks.filter((t) => t.status === 'review');
                   const completedTasks = memberTasks.filter((t) => t.status === 'done');
                   const colors = getMemberColors(member);
-                  const isManager = member === projectManager;
+                  const isManager = isProjectManager(currentProject, member);
+                  const isCurrentLoggedIn = member === currentUser;
 
                   return (
                     <div
                       key={member}
-                      className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4"
+                      className={`bg-white border rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4 transition-all ${
+                        isCurrentLoggedIn ? 'border-indigo-300 ring-1 ring-indigo-300' : 'border-slate-200'
+                      }`}
                     >
                       <div className="space-y-3">
                         {/* Member Header */}
@@ -2495,13 +3063,23 @@ export default function App() {
                               {getInitials(member)}
                             </span>
                             <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <h3 className="text-sm font-bold text-slate-900 truncate">
                                   {member}
                                 </h3>
-                                {isManager && (
-                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded" title="Project Manager">
-                                    PM
+                                {isManager ? (
+                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded flex items-center gap-0.5" title="Project Manager">
+                                    <span>👑</span>
+                                    <span>PM</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                                    Member
+                                  </span>
+                                )}
+                                {isCurrentLoggedIn && (
+                                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded">
+                                    You
                                   </span>
                                 )}
                               </div>
@@ -2511,13 +3089,13 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Remove Member Button (FR39) */}
-                          {!isManager && (
+                          {/* Remove Member Button (Disabled if PM) */}
+                          {!isManager && isCurrentUserPM && (
                             <button
                               type="button"
                               onClick={() => handleRemoveMember(member)}
                               className="text-slate-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
-                              title={`Remove ${member} from project (FR39)`}
+                              title={`Remove ${member} from project`}
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2525,6 +3103,32 @@ export default function App() {
                             </button>
                           )}
                         </div>
+
+                        {/* Project Manager Role Promotion / Demotion Controls */}
+                        {isCurrentUserPM && !isCurrentLoggedIn && (
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <span className="text-[11px] font-semibold text-slate-600">Role:</span>
+                            {isManager ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDemoteMember(member)}
+                                className="px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 rounded border border-amber-200 transition-colors"
+                                title="Demote to Team Member"
+                              >
+                                Demote from PM
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handlePromoteMember(member)}
+                                className="px-2 py-0.5 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors"
+                                title="Promote to Project Manager"
+                              >
+                                👑 Promote to PM
+                              </button>
+                            )}
+                          </div>
+                        )}
 
                         {/* Status Counts Breakdown */}
                         <div className="grid grid-cols-4 gap-1 pt-2 border-t border-slate-100 text-center">
@@ -2591,7 +3195,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* Task Modal for Add, Edit, Delete (FR15 - FR17, FR30 - FR34) */}
+      {/* Task Modal for Add, Edit, Delete */}
       <TaskModal
         isOpen={modalState.isOpen}
         mode={modalState.mode}
