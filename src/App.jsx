@@ -762,9 +762,9 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                   </div>
 
                   <div>
-                    <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
+                    <h2 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
                       {user}
-                    </h3>
+                    </h2>
                     {userEmails && userEmails[user] && (
                       <p className="text-[11px] text-slate-300 truncate">
                         {userEmails[user]}
@@ -3350,9 +3350,9 @@ export default function App() {
                         Project Manager{projectManagers.length > 1 ? 's' : ''}
                       </span>
                     </div>
-                    <h3 className="text-sm font-bold text-slate-900 mt-0.5">
+                    <h2 className="text-sm font-bold text-slate-900 mt-0.5">
                       {projectManagers.join(', ')}
-                    </h3>
+                    </h2>
                   </div>
                 </div>
 
