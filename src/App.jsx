@@ -654,11 +654,23 @@ function renderFormattedText(text) {
 function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser, onAddUser }) {
   const [customName, setCustomName] = useState('');
   const [customEmail, setCustomEmail] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && showCreateModal) {
+        setShowCreateModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showCreateModal]);
 
   const handleCustomSubmit = (e) => {
     e.preventDefault();
     if (!customName.trim() || !customEmail.trim()) return;
     onAddUser(customName.trim(), customEmail.trim());
+    setShowCreateModal(false);
   };
 
   return (
@@ -681,9 +693,17 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
           </div>
         </div>
 
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-          Role-Based Access Control
-        </span>
+        <button
+          type="button"
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 border border-indigo-500 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+          aria-label="Create new user account"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>Create New User</span>
+        </button>
       </header>
 
       {/* Main Content Area */}
@@ -786,21 +806,58 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
           })}
         </div>
 
-        {/* Custom Profile Creation */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 sm:p-5 max-w-lg mx-auto">
-          <span className="text-xs font-semibold text-slate-300 block mb-2.5 text-center">
-            Or create a new account:
-          </span>
-          <form onSubmit={handleCustomSubmit} className="space-y-2.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {/* Alternative Link to trigger Modal */}
+        <div className="text-center pt-2">
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="text-xs text-slate-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1.5 underline underline-offset-4 focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded"
+          >
+            <span>Need a new profile? Create an account →</span>
+          </button>
+        </div>
+      </main>
+
+      {/* Create New User Modal Dialog */}
+      {showCreateModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-user-modal-heading"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div
+            className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
-                <label htmlFor="landing-full-name" className="block text-[10px] uppercase font-bold text-slate-300 mb-1">
+                <h2 id="create-user-modal-heading" className="text-base font-bold text-white">Create New User</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Enter your name and email to create an account and sign in</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                aria-label="Close dialog"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleCustomSubmit} className="space-y-3.5">
+              <div>
+                <label htmlFor="landing-modal-full-name" className="block text-[11px] uppercase font-bold text-slate-300 mb-1">
                   Name <span className="text-red-400">*</span>
                 </label>
                 <input
-                  id="landing-full-name"
+                  id="landing-modal-full-name"
                   type="text"
                   required
+                  autoFocus
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
                   placeholder="e.g. Alex Smith"
@@ -808,11 +865,11 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                 />
               </div>
               <div>
-                <label htmlFor="landing-email-addr" className="block text-[10px] uppercase font-bold text-slate-300 mb-1">
+                <label htmlFor="landing-modal-email-addr" className="block text-[11px] uppercase font-bold text-slate-300 mb-1">
                   Email <span className="text-red-400">*</span>
                 </label>
                 <input
-                  id="landing-email-addr"
+                  id="landing-modal-email-addr"
                   type="email"
                   required
                   value={customEmail}
@@ -821,16 +878,26 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                   className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 px-3 py-2 text-xs rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
-            </div>
-            <button
-              type="submit"
-              className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors border border-indigo-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-            >
-              Create Account &amp; Sign In →
-            </button>
-          </form>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-3 py-2 text-xs font-medium text-slate-400 hover:text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors border border-indigo-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                >
+                  Create Account &amp; Sign In →
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </main>
+      )}
     </div>
   );
 }
