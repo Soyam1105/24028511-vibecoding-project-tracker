@@ -573,13 +573,14 @@ function renderFormattedText(text) {
  * Landing / Login Screen for Prototype User Authentication
  * Note: Profile deletion is strictly available inside the app once logged in.
  */
-function LandingLoginScreen({ accounts, projects, onSelectUser, onAddUser }) {
+function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser, onAddUser }) {
   const [customName, setCustomName] = useState('');
+  const [customEmail, setCustomEmail] = useState('');
 
   const handleCustomSubmit = (e) => {
     e.preventDefault();
-    if (!customName.trim()) return;
-    onAddUser(customName.trim());
+    if (!customName.trim() || !customEmail.trim()) return;
+    onAddUser(customName.trim(), customEmail.trim());
   };
 
   return (
@@ -656,6 +657,11 @@ function LandingLoginScreen({ accounts, projects, onSelectUser, onAddUser }) {
                     <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
                       {user}
                     </h3>
+                    {userEmails && userEmails[user] && (
+                      <p className="text-[11px] text-slate-400 truncate">
+                        {userEmails[user]}
+                      </p>
+                    )}
                     <p className="text-xs text-slate-400 mt-0.5">
                       {userProjects.length} accessible project{userProjects.length === 1 ? '' : 's'}
                     </p>
@@ -694,23 +700,43 @@ function LandingLoginScreen({ accounts, projects, onSelectUser, onAddUser }) {
 
         {/* Custom Profile Creation */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 sm:p-5 max-w-lg mx-auto">
-          <span className="text-xs font-semibold text-slate-300 block mb-2 text-center">
-            Or create a new team profile:
+          <span className="text-xs font-semibold text-slate-300 block mb-2.5 text-center">
+            Or create a new account:
           </span>
-          <form onSubmit={handleCustomSubmit} className="flex gap-2">
-            <input
-              type="text"
-              required
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              placeholder="e.g. Alex Smith"
-              className="flex-1 bg-slate-950 border border-slate-700 focus:border-indigo-500 px-3 py-2 text-xs rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
+          <form onSubmit={handleCustomSubmit} className="space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                  Name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  placeholder="e.g. Alex Smith"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 px-3 py-2 text-xs rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                  Email <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={customEmail}
+                  onChange={(e) => setCustomEmail(e.target.value)}
+                  placeholder="test@example.com"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 px-3 py-2 text-xs rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
             <button
               type="submit"
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition-colors shrink-0 border border-slate-700"
+              className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors border border-indigo-500 shadow-sm"
             >
-              Create &amp; Sign In →
+              Create Account &amp; Sign In →
             </button>
           </form>
         </div>
@@ -1064,14 +1090,6 @@ function ProjectSidebar({
               <p className="text-[10px] text-slate-400">Click <strong>Join</strong> above to enter an invite code, or <strong>New</strong> to create one.</p>
             </div>
           )}
-        </div>
-
-        <div className="p-3 border-t border-slate-200 bg-slate-50/60 text-[11px] text-slate-500 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="font-medium text-slate-700">Project Access Active</span>
-          </div>
-          <span className="text-[10px] text-slate-400 font-mono">v1.7</span>
         </div>
       </aside>
     </>
@@ -1842,6 +1860,11 @@ export default function App() {
   // Prototype User Account System: active user + account list
   const [currentUser, setCurrentUser] = useLocalStorage('vibetracker.current_user', 'Saayam Mehmood');
   const [accounts, setAccounts] = useLocalStorage('vibetracker.accounts', TEAM);
+  const [userEmails, setUserEmails] = useLocalStorage('vibetracker.user_emails', {
+    'Saayam Mehmood': 'saayam@example.com',
+    'Teammate B': 'teammate.b@example.com',
+    'Teammate C': 'teammate.c@example.com',
+  });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [copiedInviteCode, setCopiedInviteCode] = useState(false);
   const userMenuRef = useRef(null);
@@ -1935,10 +1958,20 @@ export default function App() {
   const overdueTasks = projectTasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'overdue');
   const overdueCount = overdueTasks.length;
 
-  // Upcoming deadlines for Dashboard
-  const upcomingDeadlineTasks = projectTasks
-    .filter((t) => t.status !== 'done' && t.dueDate)
-    .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+  // Upcoming deadlines for Dashboard: sort by due date, show first 3 tasks, but ensure all overdue & <24h tasks are shown
+  const upcomingDeadlineTasks = (() => {
+    const activeTasksWithDue = projectTasks
+      .filter((t) => t.status !== 'done' && t.dueDate)
+      .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+
+    const urgentCount = activeTasksWithDue.filter((t) => {
+      const status = getDueStatus(t.dueDate, t.status);
+      return status.state === 'overdue' || status.state === 'warning';
+    }).length;
+
+    const limit = Math.max(3, urgentCount);
+    return activeTasksWithDue.slice(0, limit);
+  })();
 
   const showToast = (message) => {
     setActiveToast(message);
@@ -2103,6 +2136,13 @@ export default function App() {
         t.assignee === targetUser ? { ...t, assignee: fallbackList[0] } : t
       )
     );
+
+    // Clean up stored email
+    setUserEmails((prev) => {
+      const copy = { ...prev };
+      delete copy[targetUser];
+      return copy;
+    });
 
     if (targetUser === currentUser) {
       setIsLoggedIn(false);
@@ -2301,6 +2341,7 @@ export default function App() {
       <LandingLoginScreen
         accounts={availableAccounts}
         projects={projects}
+        userEmails={userEmails}
         onSelectUser={(userName) => {
           setCurrentUser(userName);
           setIsLoggedIn(true);
@@ -2309,14 +2350,17 @@ export default function App() {
           } catch {}
           showToast(`Signed in as ${userName}`);
         }}
-        onAddUser={(newUserName) => {
+        onAddUser={(newUserName, newUserEmail) => {
           setAccounts((prev) => Array.from(new Set([...prev, newUserName])));
+          if (newUserEmail) {
+            setUserEmails((prev) => ({ ...prev, [newUserName]: newUserEmail }));
+          }
           setCurrentUser(newUserName);
           setIsLoggedIn(true);
           try {
             window.sessionStorage.setItem('vibetracker.session_active', 'true');
           } catch {}
-          showToast(`Created profile and signed in as ${newUserName}`);
+          showToast(`Created account and signed in as ${newUserName}`);
         }}
       />
     );
@@ -2470,6 +2514,9 @@ export default function App() {
                     </span>
                     <div className="min-w-0">
                       <span className="block text-xs font-bold text-slate-900 truncate">{currentUser}</span>
+                      {userEmails && userEmails[currentUser] && (
+                        <span className="block text-[10px] text-slate-400 truncate">{userEmails[currentUser]}</span>
+                      )}
                       <span className="block text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
                         Active Profile
@@ -2510,6 +2557,9 @@ export default function App() {
                             </span>
                             <div className="min-w-0">
                               <span className="block truncate leading-tight">{account}</span>
+                              {userEmails && userEmails[account] && (
+                                <span className="block text-[10px] text-slate-400 truncate">{userEmails[account]}</span>
+                              )}
                               {isManager && (
                                 <span className="block text-[9px] text-amber-600 font-normal">Project Manager</span>
                               )}
@@ -2540,7 +2590,7 @@ export default function App() {
                       <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                       </svg>
-                      <span>Log Out / Switch Profile</span>
+                      <span>Log Out</span>
                     </button>
 
                     <button
@@ -2638,7 +2688,9 @@ export default function App() {
                     <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2.5">
                       <span className="text-[11px] text-slate-500 font-medium block">Total Tasks</span>
                       <span className="text-lg font-bold text-slate-900 mt-0.5 block">{projectTasks.length}</span>
-                      <span className="text-[10px] text-slate-400">{featureCount}f · {bugCount}b</span>
+                      <span className="text-[10px] text-slate-500 font-medium block whitespace-nowrap">
+                        {featureCount} {featureCount === 1 ? 'feat' : 'feats'} · {bugCount} {bugCount === 1 ? 'bug' : 'bugs'}
+                      </span>
                     </div>
 
                     <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-lg p-2.5">
@@ -2683,7 +2735,7 @@ export default function App() {
                     </span>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto max-h-44 space-y-2 pr-1">
+                  <div className="flex-1 overflow-y-auto max-h-52 space-y-2 pr-1">
                     {upcomingDeadlineTasks.length > 0 ? (
                       upcomingDeadlineTasks.map((task) => {
                         const dueInfo = getDueStatus(task.dueDate, task.status);
