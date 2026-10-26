@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
  *   - M9  context       : a curated Context briefing field on the modal.
  *   - M10 copy-prompt   : a "Copy as Prompt Context" button that serializes the task + context.
  *   - M11 anchors       : the Anchor Board above the Kanban.
- *   - M12 secret-sauce  : Multi-project workspace sidebar navigation + project management!
+ *   - M12 secret-sauce  : Multi-project workspaces with Dashboard, Kanban, and Members tabs!
  */
 
 /**
@@ -47,7 +47,6 @@ import { useState, useEffect } from 'react';
  * @property {string|null} url
  */
 
-// The four columns of the board, in render order.
 export const STAGES = [
   { id: 'todo',        label: 'To Do' },
   { id: 'in-progress', label: 'In Progress' },
@@ -63,13 +62,13 @@ export const INITIAL_PROJECTS = [
   {
     id: 'proj-hackathon',
     name: 'Hackathon Project Tracker',
-    description: 'Main project tracking Module 5 vibecoding deliverables',
+    description: 'Central project tracking Module 5 vibecoding deliverables, Kanban task states, and AI prompt context briefings.',
     createdAt: '2026-10-20',
   },
   {
     id: 'proj-landing',
     name: 'Marketing & Landing Page',
-    description: 'Landing page assets and public documentation',
+    description: 'Public marketing website, demo walkthrough videos, and landing page assets for product launch.',
     createdAt: '2026-10-21',
   },
 ];
@@ -503,8 +502,7 @@ export function AnchorIcon({ id, className = 'w-4 h-4' }) {
 }
 
 /**
- * Project Sidebar Component
- * Allows creating, listing, selecting and managing projects
+ * Project Sidebar with Title + Description creation inputs
  */
 function ProjectSidebar({
   projects,
@@ -518,18 +516,19 @@ function ProjectSidebar({
 }) {
   const [isCreating, setIsCreating] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDesc, setNewProjectDesc] = useState('');
 
   const handleCreateSubmit = (e) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
-    onCreateProject(newProjectName.trim());
+    onCreateProject(newProjectName.trim(), newProjectDesc.trim());
     setNewProjectName('');
+    setNewProjectDesc('');
     setIsCreating(false);
   };
 
   return (
     <>
-      {/* Mobile backdrop */}
       {isOpen && (
         <div
           className="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
@@ -542,7 +541,7 @@ function ProjectSidebar({
           isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
-        {/* Sidebar Header */}
+        {/* Sidebar Brand Header */}
         <div className="h-14 px-4 border-b border-slate-200/90 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <div className="h-7 w-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
@@ -584,26 +583,44 @@ function ProjectSidebar({
           </button>
         </div>
 
-        {/* Create Project Inline Form */}
+        {/* Create Project Inline Form with Name and Description */}
         {isCreating && (
-          <form onSubmit={handleCreateSubmit} className="p-3 bg-slate-50 border-b border-slate-200">
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-              Project Name
-            </label>
-            <input
-              type="text"
-              autoFocus
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              placeholder="e.g. Mobile App"
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-indigo-400 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600 mb-2"
-            />
-            <div className="flex items-center justify-end gap-1.5">
+          <form onSubmit={handleCreateSubmit} className="p-3 bg-slate-50 border-b border-slate-200 space-y-2">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                Project Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                autoFocus
+                required
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="e.g. Mobile App Client"
+                className="w-full px-2.5 py-1 text-xs bg-white border border-indigo-400 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                Description
+              </label>
+              <textarea
+                rows="2"
+                value={newProjectDesc}
+                onChange={(e) => setNewProjectDesc(e.target.value)}
+                placeholder="Goals, target users, or context..."
+                className="w-full px-2.5 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-1.5 pt-1">
               <button
                 type="button"
                 onClick={() => {
                   setIsCreating(false);
                   setNewProjectName('');
+                  setNewProjectDesc('');
                 }}
                 className="px-2 py-1 text-[11px] text-slate-500 hover:text-slate-700 rounded"
               >
@@ -646,7 +663,14 @@ function ProjectSidebar({
                       isSelected ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
                     }`}
                   />
-                  <span className="truncate">{project.name}</span>
+                  <div className="min-w-0">
+                    <span className="block truncate">{project.name}</span>
+                    {project.description && (
+                      <span className="block truncate text-[10px] text-slate-400 font-normal">
+                        {project.description}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -681,16 +705,92 @@ function ProjectSidebar({
           })}
         </div>
 
-        {/* Sidebar Footer */}
         <div className="p-3 border-t border-slate-200 bg-slate-50/60 text-[11px] text-slate-500 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             <span className="font-medium text-slate-700">Workspace active</span>
           </div>
-          <span className="text-[10px] text-slate-400 font-mono">v1.0</span>
+          <span className="text-[10px] text-slate-400 font-mono">v1.2</span>
         </div>
       </aside>
     </>
+  );
+}
+
+/**
+ * Reusable Team Activity Component (displayed in both Kanban and Members tabs)
+ */
+function TeamActivitySection({ team, projectTasks, filterAssignee, onToggleFilter }) {
+  return (
+    <section className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+            Team Activity
+          </h2>
+          <span className="text-[11px] text-slate-400">· Who is doing what in this project</span>
+        </div>
+        {filterAssignee && (
+          <button
+            onClick={() => onToggleFilter(null)}
+            className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+          >
+            Clear Filter (Showing all)
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+        {team.map((member) => {
+          const memberTasks = projectTasks.filter((t) => t.assignee === member);
+          const activeTask = memberTasks.find((t) => t.status === 'in-progress');
+          const colors = getMemberColors(member);
+          const isSelected = filterAssignee === member;
+
+          return (
+            <div
+              key={member}
+              onClick={() => onToggleFilter(isSelected ? null : member)}
+              className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                isSelected
+                  ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500 shadow-sm'
+                  : 'border-slate-200/80 bg-slate-50/60 hover:bg-slate-100/70 hover:border-slate-300'
+              }`}
+              title={`Click to filter board by ${member}`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className={`inline-flex items-center justify-center h-7 w-7 rounded-full border text-[11px] font-bold shrink-0 ${colors.bg} ${colors.text} ${colors.border}`}
+                >
+                  {getInitials(member)}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-900 truncate">
+                      {member}
+                    </span>
+                    {activeTask && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" title="Actively driving" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {activeTask ? (
+                      <span>Driving: <span className="text-slate-700 font-medium">{activeTask.title}</span></span>
+                    ) : (
+                      <span>{memberTasks.length} {memberTasks.length === 1 ? 'task' : 'tasks'} assigned</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold bg-white border border-slate-200 text-slate-600 shrink-0">
+                {memberTasks.length}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -724,7 +824,7 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
   };
 
   return (
-    <section className="mb-6 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+    <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -1390,6 +1490,9 @@ export default function App() {
   const [tasks, setTasks] = useLocalStorage('vibetracker.tasks', INITIAL_TASKS);
   const [anchors, setAnchors] = useLocalStorage('vibetracker.anchors', INITIAL_ANCHORS);
 
+  // Active view tab: 'dashboard' | 'kanban' | 'members'
+  const [activeTab, setActiveTab] = useState('kanban');
+
   // Mobile sidebar toggle
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -1409,16 +1512,16 @@ export default function App() {
   const currentProject = projects.find((p) => p.id === activeProjectId) || projects[0] || {
     id: 'proj-default',
     name: 'General Project',
+    description: '',
   };
 
   // Filter tasks belonging to current active project
   const projectTasks = tasks.filter((t) => (t.projectId || projects[0]?.id) === currentProject.id);
 
-  // Filter anchors for active project (or provide the 4 standard slots)
+  // Filter anchors for active project
   const currentProjectAnchors = (() => {
     const existing = anchors.filter((a) => (a.projectId || projects[0]?.id) === currentProject.id);
     if (existing.length === 4) return existing;
-    // Fallback template for any newly created project
     return [
       { id: 'presentation',  projectId: currentProject.id, label: 'Presentation',  url: null },
       { id: 'demo',          projectId: currentProject.id, label: 'Demo',          url: null },
@@ -1429,6 +1532,7 @@ export default function App() {
 
   const featureCount = projectTasks.filter((t) => t.type === 'feature').length;
   const bugCount = projectTasks.filter((t) => t.type === 'bug').length;
+  const doneCount = projectTasks.filter((t) => t.status === 'done').length;
   const overdueCount = projectTasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'overdue').length;
   const warningCount = projectTasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'warning').length;
 
@@ -1439,14 +1543,16 @@ export default function App() {
     }, 3500);
   };
 
-  const handleCreateProject = (name) => {
+  const handleCreateProject = (name, description) => {
     const newProj = {
       id: `proj-${Date.now()}`,
       name,
+      description: description || '',
       createdAt: new Date().toISOString().slice(0, 10),
     };
     setProjects((prev) => [...prev, newProj]);
     setActiveProjectId(newProj.id);
+    setActiveTab('dashboard');
     showToast(`Project "${name}" created`);
   };
 
@@ -1546,7 +1652,6 @@ export default function App() {
             : a
         );
       }
-      // Add missing anchor slot for this project
       const slotDef = INITIAL_ANCHORS.find((x) => x.id === id);
       return [
         ...prev,
@@ -1567,7 +1672,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
-      {/* M12 Secret Sauce: Projects Sidebar */}
+      {/* Sidebar for Projects */}
       <ProjectSidebar
         projects={projects}
         activeProjectId={currentProject.id}
@@ -1582,12 +1687,12 @@ export default function App() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
-      {/* Main Content Viewport */}
+      {/* Main View Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Compact Top Bar */}
+        {/* Compact Top Bar with Project Breadcrumb and Section Tabs */}
         <header className="h-14 bg-white border-b border-slate-200/90 px-4 md:px-6 flex items-center justify-between gap-4 shrink-0 shadow-2xs">
           <div className="flex items-center gap-3 min-w-0">
-            {/* Hamburger for mobile */}
+            {/* Mobile Hamburger */}
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
@@ -1599,196 +1704,354 @@ export default function App() {
               </svg>
             </button>
 
-            {/* Active Project Breadcrumb */}
+            {/* Active Project Title (No tagline) */}
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-medium text-slate-400 hidden sm:inline">Projects /</span>
+              <span className="text-xs font-semibold text-slate-400 hidden sm:inline uppercase tracking-wider">Project /</span>
               <h1 className="text-sm md:text-base font-bold text-slate-900 truncate">
                 {currentProject.name}
               </h1>
             </div>
           </div>
 
-          {/* Top Bar Actions & Health Indicators */}
-          <div className="flex items-center gap-2.5">
-            <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs">
-              <span className="font-medium text-slate-500">Tasks:</span>
-              <span className="font-semibold text-slate-800">{projectTasks.length}</span>
-              <span className="text-slate-300">|</span>
-              <span className="inline-flex items-center gap-1 font-semibold text-feature">
-                <FeatureIcon className="w-3 h-3 text-feature" />
-                {featureCount}
-              </span>
-              <span className="text-slate-300">|</span>
-              <span className="inline-flex items-center gap-1 font-semibold text-bug">
-                <BugIcon className="w-3 h-3 text-bug" />
-                {bugCount}
-              </span>
-              {(overdueCount > 0 || warningCount > 0) && (
-                <>
-                  <span className="text-slate-300">|</span>
-                  {overdueCount > 0 && (
-                    <span className="inline-flex items-center gap-1 font-semibold text-[#B91C1C]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#B91C1C] animate-pulse" />
-                      {overdueCount} overdue
-                    </span>
-                  )}
-                  {warningCount > 0 && (
-                    <span className="inline-flex items-center gap-1 font-semibold text-[#D97706]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#D97706]" />
-                      {warningCount} due
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* "+ New Task" Button */}
+          {/* Section Navigation Tabs: Dashboard, Kanban, Members */}
+          <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200/80">
             <button
               type="button"
-              onClick={() => handleOpenCreateModal('todo')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md text-white bg-slate-900 hover:bg-slate-800 active:bg-slate-950 transition-colors shadow-2xs focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 shrink-0"
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                activeTab === 'dashboard'
+                  ? 'bg-white text-indigo-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
               </svg>
-              <span>New Task</span>
+              <span>Dashboard</span>
             </button>
-          </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('kanban')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                activeTab === 'kanban'
+                  ? 'bg-white text-indigo-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+              <span>Kanban</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('members')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                activeTab === 'members'
+                  ? 'bg-white text-indigo-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <span>Members</span>
+            </button>
+          </nav>
         </header>
 
-        {/* Scrollable Main Kanban & Anchor Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-          {/* M11 anchors: Pinned Deliverable Anchor Board for Current Project */}
-          <AnchorBoard
-            anchors={currentProjectAnchors}
-            onUpdateAnchor={handleUpdateAnchor}
-          />
+        {/* Tab Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          {/* TAB 1: DASHBOARD */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6 max-w-6xl mx-auto">
+              {/* Project Description Card */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5 max-w-2xl">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      Active Project
+                    </span>
+                    <span className="text-xs text-slate-400">Created {currentProject.createdAt || 'recently'}</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    {currentProject.name}
+                  </h2>
+                  <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
+                    {currentProject.description || 'No description provided for this project yet. Edit or add details from the sidebar.'}
+                  </p>
+                </div>
 
-          {/* M7 task-owner: Team Strip ("Who is doing what?") */}
-          <section className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Team Activity
-                </h2>
-                <span className="text-[11px] text-slate-400">· Who is doing what in this project</span>
+                {/* Quick Project Metrics */}
+                <div className="grid grid-cols-3 gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 md:border-l border-slate-200 md:pl-5">
+                  <div className="text-center px-2">
+                    <span className="block text-lg font-bold text-slate-900">{projectTasks.length}</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide">Tasks</span>
+                  </div>
+                  <div className="text-center px-2">
+                    <span className="block text-lg font-bold text-emerald-600">{doneCount}</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide">Done</span>
+                  </div>
+                  <div className="text-center px-2">
+                    <span className="block text-lg font-bold text-indigo-600">
+                      {projectTasks.length > 0 ? Math.round((doneCount / projectTasks.length) * 100) : 0}%
+                    </span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide">Rate</span>
+                  </div>
+                </div>
               </div>
-              {filterAssignee && (
+
+              {/* Deliverable Anchor Board */}
+              <AnchorBoard
+                anchors={currentProjectAnchors}
+                onUpdateAnchor={handleUpdateAnchor}
+              />
+
+              {/* Action Banner to Kanban */}
+              <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-xl p-5 shadow-sm flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-bold">Ready to work on tasks?</h3>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Move tasks through To Do, In Progress, Review, and Done on the Kanban board.
+                  </p>
+                </div>
                 <button
-                  onClick={() => setFilterAssignee(null)}
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                  type="button"
+                  onClick={() => setActiveTab('kanban')}
+                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition-colors shadow-sm shrink-0"
                 >
-                  Clear Filter (Showing all)
+                  Open Kanban Board →
                 </button>
-              )}
+              </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-              {TEAM.map((member) => {
-                const memberTasks = projectTasks.filter((t) => t.assignee === member);
-                const activeTask = memberTasks.find((t) => t.status === 'in-progress');
-                const colors = getMemberColors(member);
-                const isSelected = filterAssignee === member;
+          {/* TAB 2: KANBAN */}
+          {activeTab === 'kanban' && (
+            <div className="space-y-5">
+              {/* Kanban Toolbar: Task health counters + "+ New Task" button */}
+              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {/* Task indicators (moved here from top bar) */}
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="font-semibold text-slate-700">Project Tasks:</span>
+                  <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    {projectTasks.length} total
+                  </span>
+                  <span className="text-slate-300">|</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-feature">
+                    <FeatureIcon className="w-3 h-3 text-feature" />
+                    {featureCount} features
+                  </span>
+                  <span className="text-slate-300">|</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-bug">
+                    <BugIcon className="w-3 h-3 text-bug" />
+                    {bugCount} bugs
+                  </span>
+                  {(overdueCount > 0 || warningCount > 0) && (
+                    <>
+                      <span className="text-slate-300">|</span>
+                      {overdueCount > 0 && (
+                        <span className="inline-flex items-center gap-1 font-semibold text-[#B91C1C]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#B91C1C] animate-pulse" />
+                          {overdueCount} overdue
+                        </span>
+                      )}
+                      {warningCount > 0 && (
+                        <span className="inline-flex items-center gap-1 font-semibold text-[#D97706]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#D97706]" />
+                          {warningCount} due soon
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
 
-                return (
-                  <div
-                    key={member}
-                    onClick={() => setFilterAssignee(isSelected ? null : member)}
-                    className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                      isSelected
-                        ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500 shadow-sm'
-                        : 'border-slate-200/80 bg-slate-50/60 hover:bg-slate-100/70 hover:border-slate-300'
-                    }`}
-                    title={`Click to filter board by ${member}`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className={`inline-flex items-center justify-center h-7 w-7 rounded-full border text-[11px] font-bold shrink-0 ${colors.bg} ${colors.text} ${colors.border}`}
-                      >
-                        {getInitials(member)}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-semibold text-slate-900 truncate">
-                            {member}
+                {/* "+ New Task" Button (moved here from top bar) */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenCreateModal('todo')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md text-white bg-slate-900 hover:bg-slate-800 active:bg-slate-950 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 shrink-0 self-start sm:self-auto"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>New Task</span>
+                </button>
+              </div>
+
+              {/* Team Activity Section (Duplicated in Kanban) */}
+              <TeamActivitySection
+                team={TEAM}
+                projectTasks={projectTasks}
+                filterAssignee={filterAssignee}
+                onToggleFilter={setFilterAssignee}
+              />
+
+              {/* Kanban Four-Column Board */}
+              <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pb-6">
+                {STAGES.map((stage) => {
+                  const stageTasks = displayedTasks.filter((t) => t.status === stage.id);
+                  return (
+                    <section
+                      key={stage.id}
+                      className="bg-slate-100/80 rounded-xl p-3 border border-slate-200/70 flex flex-col"
+                    >
+                      <div className="flex items-center justify-between px-1 py-1 mb-2.5">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                            {stage.label}
+                          </h2>
+                          <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[11px] font-semibold bg-slate-200/90 text-slate-700">
+                            {stageTasks.length}
                           </span>
-                          {activeTask && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" title="Actively driving" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCreateModal(stage.id)}
+                          className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-200/60 transition-colors"
+                          title={`Add task to ${stage.label}`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5 min-h-[120px]">
+                        {stageTasks.length > 0 ? (
+                          stageTasks.map((task) => (
+                            <TaskCard
+                              key={task.id}
+                              task={task}
+                              onSelect={handleOpenEditModal}
+                              onHandoff={handleHandoff}
+                              onCopyPrompt={handleCopyPromptContext}
+                              isCopied={copiedTaskId === task.id}
+                            />
+                          ))
+                        ) : (
+                          <div className="flex items-center justify-center h-28 rounded-lg border-2 border-dashed border-slate-300/80 p-4 text-center text-xs text-slate-400 font-medium">
+                            {filterAssignee
+                              ? `No tasks for ${filterAssignee} in ${stage.label}`
+                              : 'Nothing here yet, continue coding'}
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                  );
+                })}
+              </main>
+            </div>
+          )}
+
+          {/* TAB 3: MEMBERS */}
+          {activeTab === 'members' && (
+            <div className="space-y-6 max-w-6xl mx-auto">
+              {/* Team Activity Section (Duplicated in Members) */}
+              <TeamActivitySection
+                team={TEAM}
+                projectTasks={projectTasks}
+                filterAssignee={filterAssignee}
+                onToggleFilter={setFilterAssignee}
+              />
+
+              {/* Members Detailed Roster & Workload Breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {TEAM.map((member) => {
+                  const memberTasks = projectTasks.filter((t) => t.assignee === member);
+                  const inProgressTasks = memberTasks.filter((t) => t.status === 'in-progress');
+                  const todoTasks = memberTasks.filter((t) => t.status === 'todo');
+                  const reviewTasks = memberTasks.filter((t) => t.status === 'review');
+                  const completedTasks = memberTasks.filter((t) => t.status === 'done');
+                  const colors = getMemberColors(member);
+
+                  return (
+                    <div
+                      key={member}
+                      className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4"
+                    >
+                      <div className="space-y-3">
+                        {/* Member Header */}
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`inline-flex items-center justify-center h-10 w-10 rounded-full border text-sm font-bold shrink-0 ${colors.bg} ${colors.text} ${colors.border}`}
+                          >
+                            {getInitials(member)}
+                          </span>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-slate-900 truncate">
+                              {member}
+                            </h3>
+                            <span className="text-xs text-slate-500">
+                              {memberTasks.length} total tasks assigned
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Status Counts Breakdown */}
+                        <div className="grid grid-cols-4 gap-1 pt-2 border-t border-slate-100 text-center">
+                          <div className="bg-slate-50 p-1.5 rounded">
+                            <span className="block text-xs font-bold text-slate-700">{todoTasks.length}</span>
+                            <span className="text-[9px] uppercase font-semibold text-slate-400">To Do</span>
+                          </div>
+                          <div className="bg-indigo-50 p-1.5 rounded">
+                            <span className="block text-xs font-bold text-indigo-700">{inProgressTasks.length}</span>
+                            <span className="text-[9px] uppercase font-semibold text-indigo-500">Doing</span>
+                          </div>
+                          <div className="bg-amber-50 p-1.5 rounded">
+                            <span className="block text-xs font-bold text-amber-700">{reviewTasks.length}</span>
+                            <span className="text-[9px] uppercase font-semibold text-amber-500">Review</span>
+                          </div>
+                          <div className="bg-emerald-50 p-1.5 rounded">
+                            <span className="block text-xs font-bold text-emerald-700">{completedTasks.length}</span>
+                            <span className="text-[9px] uppercase font-semibold text-emerald-500">Done</span>
+                          </div>
+                        </div>
+
+                        {/* Active Task List */}
+                        <div className="space-y-1.5 pt-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                            Assigned Tasks:
+                          </span>
+                          {memberTasks.length > 0 ? (
+                            <ul className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                              {memberTasks.map((task) => (
+                                <li
+                                  key={task.id}
+                                  onClick={() => handleOpenEditModal(task)}
+                                  className="text-xs p-2 rounded-md bg-slate-50 hover:bg-slate-100 cursor-pointer border border-slate-200/60 flex items-center justify-between gap-2"
+                                >
+                                  <span className="truncate font-medium text-slate-800">{task.title}</span>
+                                  <span className="text-[10px] font-semibold text-slate-500 uppercase shrink-0">
+                                    {task.status}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic">No tasks currently assigned</p>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-500 truncate">
-                          {activeTask ? (
-                            <span>Driving: <span className="text-slate-700 font-medium">{activeTask.title}</span></span>
-                          ) : (
-                            <span>{memberTasks.length} {memberTasks.length === 1 ? 'task' : 'tasks'} assigned</span>
-                          )}
-                        </p>
                       </div>
-                    </div>
 
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold bg-white border border-slate-200 text-slate-600 shrink-0">
-                      {memberTasks.length}
-                    </span>
-                  </div>
-                );
-              })}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilterAssignee(member);
+                          setActiveTab('kanban');
+                        }}
+                        className="w-full py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
+                      >
+                        View on Kanban Board →
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </section>
-
-          {/* Kanban Board for Current Project */}
-          <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pb-6">
-            {STAGES.map((stage) => {
-              const stageTasks = displayedTasks.filter((t) => t.status === stage.id);
-              return (
-                <section
-                  key={stage.id}
-                  className="bg-slate-100/80 rounded-xl p-3 border border-slate-200/70 flex flex-col"
-                >
-                  <div className="flex items-center justify-between px-1 py-1 mb-2.5">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        {stage.label}
-                      </h2>
-                      <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[11px] font-semibold bg-slate-200/90 text-slate-700">
-                        {stageTasks.length}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenCreateModal(stage.id)}
-                      className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-200/60 transition-colors"
-                      title={`Add task to ${stage.label}`}
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5 min-h-[120px]">
-                    {stageTasks.length > 0 ? (
-                      stageTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onSelect={handleOpenEditModal}
-                          onHandoff={handleHandoff}
-                          onCopyPrompt={handleCopyPromptContext}
-                          isCopied={copiedTaskId === task.id}
-                        />
-                      ))
-                    ) : (
-                      <div className="flex items-center justify-center h-28 rounded-lg border-2 border-dashed border-slate-300/80 p-4 text-center text-xs text-slate-400 font-medium">
-                        {filterAssignee
-                          ? `No tasks for ${filterAssignee} in ${stage.label}`
-                          : 'Nothing here yet, continue coding'}
-                      </div>
-                    )}
-                  </div>
-                </section>
-              );
-            })}
-          </main>
+          )}
         </div>
       </div>
 
@@ -1805,7 +2068,7 @@ export default function App() {
         isCopied={copiedTaskId === (modalState.task?.id || 'NEW-TASK')}
       />
 
-      {/* Unified Visual Toast Notification */}
+      {/* Toast Notification */}
       {activeToast && (
         <div
           role="status"
