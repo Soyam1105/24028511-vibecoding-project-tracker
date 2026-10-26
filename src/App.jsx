@@ -831,11 +831,6 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
           </form>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="relative z-10 max-w-6xl w-full mx-auto px-6 py-4 text-center text-xs text-slate-500 border-t border-slate-800/80">
-        Vibecoding Project Tracker · Prototype Environment with Project Access Control
-      </footer>
     </div>
   );
 }
