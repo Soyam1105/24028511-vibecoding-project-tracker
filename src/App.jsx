@@ -729,17 +729,8 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
             return (
               <div
                 key={user}
-                role="button"
-                tabIndex={0}
-                aria-label={`Sign In as ${user}`}
                 onClick={() => onSelectUser(user)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onSelectUser(user);
-                  }
-                }}
-                className="group relative bg-slate-900/70 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between gap-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                className="group relative bg-slate-900/70 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between gap-4"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
@@ -791,12 +782,19 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                   </div>
                 </div>
 
-                <div className="w-full py-2 px-3 rounded-lg bg-indigo-600 group-hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectUser(user);
+                  }}
+                  className="w-full py-2.5 px-3 rounded-lg bg-indigo-600 group-hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                >
                   <span>Sign In as {user}</span>
-                  <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
-                </div>
+                </button>
               </div>
             );
           })}
