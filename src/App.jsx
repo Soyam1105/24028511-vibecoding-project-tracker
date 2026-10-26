@@ -697,7 +697,6 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
           type="button"
           onClick={() => setShowCreateModal(true)}
           className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 border border-indigo-500 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-          aria-label="Create new user account"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
@@ -732,7 +731,7 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                 key={user}
                 role="button"
                 tabIndex={0}
-                aria-label={`Sign in as ${user}`}
+                aria-label={`Sign In as ${user}`}
                 onClick={() => onSelectUser(user)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -792,11 +791,8 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                   </div>
                 </div>
 
-                <div
-                  className="w-full py-2 px-3 rounded-lg bg-indigo-600 group-hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-                  aria-hidden="true"
-                >
-                  <span>Sign In as {user.split(' ')[0]}</span>
+                <div className="w-full py-2 px-3 rounded-lg bg-indigo-600 group-hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm">
+                  <span>Sign In as {user}</span>
                   <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
@@ -3129,10 +3125,9 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => handleOpenCreateModal('todo')}
-                    aria-label="Add new task to project"
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md text-white bg-slate-900 hover:bg-slate-800 active:bg-slate-950 transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 shrink-0 self-start sm:self-auto"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
                     </svg>
                     <span>New Task</span>
