@@ -45,6 +45,11 @@ export const INITIAL_PROJECTS = [
     managers: ['Saayam Mehmood'],
     manager: 'Saayam Mehmood',
     members: ['Saayam Mehmood', 'Teammate B', 'Teammate C'],
+    memberJoinDates: {
+      'Saayam Mehmood': '2026-10-20',
+      'Teammate B': '2026-10-21',
+      'Teammate C': '2026-10-22',
+    },
     inviteCode: 'K9X2B7',
   },
   {
@@ -54,6 +59,10 @@ export const INITIAL_PROJECTS = [
     managers: ['Saayam Mehmood'],
     manager: 'Saayam Mehmood',
     members: ['Saayam Mehmood', 'Teammate B'],
+    memberJoinDates: {
+      'Saayam Mehmood': '2026-10-21',
+      'Teammate B': '2026-10-22',
+    },
     inviteCode: 'W4M8Q1',
   },
 ];
@@ -64,24 +73,28 @@ export const INITIAL_ANCHORS = [
     projectId: 'proj-hackathon',
     label: 'Presentation',
     url: 'https://docs.google.com/presentation',
+    lastModified: '2026-10-24',
   },
   {
     id: 'demo',
     projectId: 'proj-hackathon',
     label: 'Demo',
     url: 'https://24028511-vibecoding-project-tracker.vercel.app/',
+    lastModified: '2026-10-25',
   },
   {
     id: 'report',
     projectId: 'proj-hackathon',
     label: 'Report',
     url: null,
+    lastModified: null,
   },
   {
     id: 'documentation',
     projectId: 'proj-hackathon',
     label: 'Documentation',
     url: 'https://github.com/Soyam1105/24028511-vibecoding-project-tracker',
+    lastModified: '2026-10-26',
   },
 ];
 
@@ -139,14 +152,52 @@ export function isProjectManager(project, user) {
   return getProjectManagers(project).includes(user);
 }
 
+export function getMemberJoinedDate(project, member) {
+  if (project?.memberJoinDates && project.memberJoinDates[member]) {
+    return project.memberJoinDates[member];
+  }
+  const initProject = INITIAL_PROJECTS.find((p) => p.id === project?.id);
+  if (initProject?.memberJoinDates && initProject.memberJoinDates[member]) {
+    return initProject.memberJoinDates[member];
+  }
+  if (project?.createdAt) {
+    return project.createdAt;
+  }
+  return '2026-10-20';
+}
+
+/**
+ * Format any date string (ISO or timestamp) to DD/MM/YYYY format
+ */
+export function formatDate(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const trimmed = dateStr.trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const matchIso = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (matchIso) {
+    const [, year, month, day] = matchIso;
+    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+  }
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+  return trimmed;
+}
+
 export function getDueStatus(dueDate, status) {
   if (status === 'done') {
     return {
       state: 'neutral',
       label: 'Completed',
-      badgeClass: 'bg-slate-100 text-[#64748B] border-slate-200',
+      badgeClass: 'bg-slate-100 text-[#334155] border-slate-300 font-medium',
       tintClass: 'bg-slate-50/50 border-slate-200',
-      pillClass: 'text-[#64748B]',
+      pillClass: 'text-[#334155]',
       daysDiff: null,
     };
   }
@@ -155,9 +206,9 @@ export function getDueStatus(dueDate, status) {
     return {
       state: 'none',
       label: 'No due date',
-      badgeClass: 'bg-slate-50 text-slate-400 border-slate-200',
+      badgeClass: 'bg-slate-100 text-[#334155] border-slate-300 font-medium',
       tintClass: 'bg-white border-slate-200/90',
-      pillClass: 'text-slate-400',
+      pillClass: 'text-[#334155]',
       daysDiff: null,
     };
   }
@@ -165,7 +216,34 @@ export function getDueStatus(dueDate, status) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [year, month, day] = dueDate.split('-').map(Number);
+  let year, month, day;
+  if (dueDate.includes('/')) {
+    const parts = dueDate.split('/').map(Number);
+    if (parts.length === 3) {
+      day = parts[0];
+      month = parts[1];
+      year = parts[2];
+    }
+  } else if (dueDate.includes('-')) {
+    const parts = dueDate.split('-').map(Number);
+    if (parts.length === 3) {
+      year = parts[0];
+      month = parts[1];
+      day = parts[2];
+    }
+  }
+
+  if (!year || !month || !day) {
+    return {
+      state: 'none',
+      label: 'No due date',
+      badgeClass: 'bg-slate-100 text-[#334155] border-slate-300 font-medium',
+      tintClass: 'bg-white border-slate-200/90',
+      pillClass: 'text-[#334155]',
+      daysDiff: null,
+    };
+  }
+
   const due = new Date(year, month - 1, day);
   due.setHours(0, 0, 0, 0);
 
@@ -177,9 +255,9 @@ export function getDueStatus(dueDate, status) {
     return {
       state: 'overdue',
       label: overdueDays === 1 ? '1 day overdue' : `${overdueDays} days overdue`,
-      badgeClass: 'bg-red-50 text-[#B91C1C] border-red-200 font-semibold',
+      badgeClass: 'bg-red-50 text-[#991B1B] border-red-300 font-semibold',
       tintClass: 'bg-red-50/30 border-red-200 hover:border-red-300',
-      pillClass: 'text-[#B91C1C]',
+      pillClass: 'text-[#991B1B]',
       daysDiff: diffDays,
     };
   }
@@ -188,9 +266,9 @@ export function getDueStatus(dueDate, status) {
     return {
       state: 'warning',
       label: diffDays === 0 ? 'Due today (<24h)' : 'Due tomorrow (<24h)',
-      badgeClass: 'bg-amber-50 text-[#D97706] border-amber-200 font-semibold',
+      badgeClass: 'bg-amber-50 text-[#92400E] border-amber-300 font-semibold',
       tintClass: 'bg-amber-50/30 border-amber-200 hover:border-amber-300',
-      pillClass: 'text-[#D97706]',
+      pillClass: 'text-[#92400E]',
       daysDiff: diffDays,
     };
   }
@@ -198,9 +276,9 @@ export function getDueStatus(dueDate, status) {
   return {
     state: 'safe',
     label: `Due in ${diffDays} days`,
-    badgeClass: 'bg-emerald-50 text-[#16A34A] border-emerald-200 font-medium',
+    badgeClass: 'bg-emerald-50 text-[#166534] border-emerald-300 font-medium',
     tintClass: 'bg-white border-slate-200/90 hover:border-slate-300',
-    pillClass: 'text-[#16A34A]',
+    pillClass: 'text-[#166534]',
     daysDiff: diffDays,
   };
 }
@@ -209,12 +287,12 @@ export function formatContextTime(isoString) {
   if (!isoString) return null;
   try {
     const d = new Date(isoString);
-    return d.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
   } catch {
     return isoString;
   }
@@ -229,7 +307,7 @@ export async function serializeAndCopyTask(task) {
     `**Type:** ${task.type === 'bug' ? 'Bug 🐛' : 'Feature 🚀'}`,
     `**Status:** ${stageLabel}`,
     `**Assignee:** ${task.assignee}`,
-    task.dueDate ? `**Due Date:** ${task.dueDate}` : null,
+    task.dueDate ? `**Due Date:** ${formatDate(task.dueDate)}` : null,
     task.contextTool ? `**AI Tool:** ${task.contextTool}` : null,
     task.contextUpdatedAt ? `**Context Updated:** ${formatContextTime(task.contextUpdatedAt)}` : null,
     '',
@@ -520,7 +598,7 @@ export function AnchorIcon({ id, className = 'w-4 h-4' }) {
  */
 function MarkdownPreview({ content }) {
   if (!content || !content.trim()) {
-    return <p className="text-xs text-slate-400 italic">No prompt context or notes provided.</p>;
+    return <p className="text-xs text-slate-500 italic">No prompt context or notes provided.</p>;
   }
 
   const lines = content.split('\n');
@@ -632,13 +710,23 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
             return (
               <div
                 key={user}
+                role="button"
+                tabIndex={0}
+                aria-label={`Sign in as ${user}`}
                 onClick={() => onSelectUser(user)}
-                className="group relative bg-slate-900/70 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between gap-4"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectUser(user);
+                  }
+                }}
+                className="group relative bg-slate-900/70 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-5 cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between gap-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
                     <span
                       className={`inline-flex items-center justify-center h-12 w-12 rounded-xl border text-sm font-bold shadow-sm ${colors.bg} ${colors.text} ${colors.border}`}
+                      aria-hidden="true"
                     >
                       {getInitials(user)}
                     </span>
@@ -646,7 +734,7 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                       className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
                         isManagerOfAny
                           ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                          : 'bg-slate-800 text-slate-300 border-slate-700'
                       }`}
                     >
                       {isManagerOfAny ? '👑 Project Lead' : 'Team Member'}
@@ -658,11 +746,11 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                       {user}
                     </h3>
                     {userEmails && userEmails[user] && (
-                      <p className="text-[11px] text-slate-400 truncate">
+                      <p className="text-[11px] text-slate-300 truncate">
                         {userEmails[user]}
                       </p>
                     )}
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-300 mt-0.5">
                       {userProjects.length} accessible project{userProjects.length === 1 ? '' : 's'}
                     </p>
                   </div>
@@ -679,20 +767,20 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                       </span>
                     ))}
                     {userProjects.length === 0 && (
-                      <span className="text-[10px] text-slate-500 italic">No project memberships yet</span>
+                      <span className="text-[10px] text-slate-400 italic">No project memberships yet</span>
                     )}
                   </div>
                 </div>
 
-                <button
-                  type="button"
+                <div
                   className="w-full py-2 px-3 rounded-lg bg-indigo-600 group-hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                  aria-hidden="true"
                 >
                   <span>Sign In as {user.split(' ')[0]}</span>
                   <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
-                </button>
+                </div>
               </div>
             );
           })}
@@ -706,35 +794,37 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
           <form onSubmit={handleCustomSubmit} className="space-y-2.5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                <label htmlFor="landing-full-name" className="block text-[10px] uppercase font-bold text-slate-300 mb-1">
                   Name <span className="text-red-400">*</span>
                 </label>
                 <input
+                  id="landing-full-name"
                   type="text"
                   required
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
                   placeholder="e.g. Alex Smith"
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 px-3 py-2 text-xs rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 px-3 py-2 text-xs rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                <label htmlFor="landing-email-addr" className="block text-[10px] uppercase font-bold text-slate-300 mb-1">
                   Email <span className="text-red-400">*</span>
                 </label>
                 <input
+                  id="landing-email-addr"
                   type="email"
                   required
                   value={customEmail}
                   onChange={(e) => setCustomEmail(e.target.value)}
                   placeholder="test@example.com"
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 px-3 py-2 text-xs rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 px-3 py-2 text-xs rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
             <button
               type="submit"
-              className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors border border-indigo-500 shadow-sm"
+              className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors border border-indigo-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-950"
             >
               Create Account &amp; Sign In →
             </button>
@@ -844,10 +934,10 @@ function ProjectSidebar({
         {/* Projects Section Header with Join and New buttons */}
         <div className="p-3 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
               My Projects
             </span>
-            <span className="text-[10px] text-slate-400 font-semibold">({projects.length})</span>
+            <span className="text-[10px] text-slate-600 font-semibold">({projects.length})</span>
           </div>
           <div className="flex items-center gap-1">
             {/* Join Project button */}
@@ -858,10 +948,11 @@ function ProjectSidebar({
                 setIsCreating(false);
                 setEditingProjectId(null);
               }}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-100 px-1.5 py-0.5 rounded transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:text-indigo-600 hover:bg-slate-100 px-1.5 py-0.5 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               title="Join project using invite code"
+              aria-label="Join project using invite code"
             >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
               </svg>
               <span>Join</span>
@@ -875,10 +966,11 @@ function ProjectSidebar({
                 setIsJoining(false);
                 setEditingProjectId(null);
               }}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-1.5 py-0.5 rounded transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 px-1.5 py-0.5 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               title="Create new project"
+              aria-label="Create new project"
             >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
               </svg>
               <span>New</span>
@@ -1024,11 +1116,22 @@ function ProjectSidebar({
               return (
                 <div
                   key={project.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Select project ${project.name}`}
+                  aria-current={isSelected ? 'true' : undefined}
                   onClick={() => {
                     onSelectProject(project.id);
                     onCloseMobile();
                   }}
-                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectProject(project.id);
+                      onCloseMobile();
+                    }
+                  }}
+                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                     isSelected
                       ? 'bg-indigo-50 text-indigo-900 font-semibold shadow-2xs border border-indigo-200/80'
                       : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-900'
@@ -1037,8 +1140,9 @@ function ProjectSidebar({
                   <div className="flex items-center gap-2.5 min-w-0">
                     <FolderIcon
                       className={`w-4 h-4 shrink-0 ${
-                        isSelected ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                        isSelected ? 'text-indigo-600' : 'text-slate-500 group-hover:text-slate-700'
                       }`}
+                      aria-hidden="true"
                     />
                     <span className="block truncate">{project.name}</span>
                   </div>
@@ -1048,8 +1152,9 @@ function ProjectSidebar({
                       className={`min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold flex items-center justify-center ${
                         isSelected
                           ? 'bg-indigo-200/70 text-indigo-900'
-                          : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
+                          : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
                       }`}
+                      aria-label={`${projectTaskCount} tasks`}
                     >
                       {projectTaskCount}
                     </span>
@@ -1058,10 +1163,11 @@ function ProjectSidebar({
                     <button
                       type="button"
                       onClick={(e) => handleStartEdit(project, e)}
-                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 p-0.5 rounded transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-slate-500 hover:text-indigo-600 p-0.5 rounded transition-opacity focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                       title="Rename project"
+                      aria-label={`Rename project ${project.name}`}
                     >
-                      <EditIcon className="w-3.5 h-3.5" />
+                      <EditIcon className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
 
                     {/* Delete Project Button */}
@@ -1072,10 +1178,11 @@ function ProjectSidebar({
                           e.stopPropagation();
                           onDeleteProject(project.id);
                         }}
-                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-0.5 rounded transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-slate-500 hover:text-red-600 p-0.5 rounded transition-opacity focus:outline-none focus-visible:ring-1 focus-visible:ring-red-500"
                         title="Delete project"
+                        aria-label={`Delete project ${project.name}`}
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
@@ -1085,9 +1192,9 @@ function ProjectSidebar({
               );
             })
           ) : (
-            <div className="p-4 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg space-y-1">
+            <div className="p-4 text-center text-xs text-slate-600 border border-dashed border-slate-300 rounded-lg space-y-1">
               <p>No accessible projects.</p>
-              <p className="text-[10px] text-slate-400">Click <strong>Join</strong> above to enter an invite code, or <strong>New</strong> to create one.</p>
+              <p className="text-[10px] text-slate-500">Click <strong>Join</strong> above to enter an invite code, or <strong>New</strong> to create one.</p>
             </div>
           )}
         </div>
@@ -1102,17 +1209,20 @@ function ProjectSidebar({
 function AnchorBoard({ anchors, onUpdateAnchor }) {
   const [editingId, setEditingId] = useState(null);
   const [editUrl, setEditUrl] = useState('');
+  const [editDate, setEditDate] = useState('');
 
   const completedCount = anchors.filter((a) => Boolean(a.url && a.url.trim())).length;
 
   const handleStartEdit = (anchor) => {
     setEditingId(anchor.id);
     setEditUrl(anchor.url || '');
+    setEditDate(anchor.lastModified || new Date().toISOString().slice(0, 10));
   };
 
   const handleSave = (id) => {
     const trimmed = editUrl.trim();
-    onUpdateAnchor(id, trimmed || null);
+    const saveDate = trimmed ? (editDate || new Date().toISOString().slice(0, 10)) : null;
+    onUpdateAnchor(id, trimmed || null, saveDate);
     setEditingId(null);
   };
 
@@ -1129,16 +1239,16 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
     <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
             Anchor Deliverables
           </h2>
-          <span className="text-xs text-slate-400">· Final Project Pins</span>
+          <span className="text-xs text-slate-500">· Final Project Pins</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-medium">
+          <span className="text-xs text-slate-600 font-medium">
             Progress: <span className="font-semibold text-slate-900">{completedCount} of {anchors.length}</span> linked
           </span>
-          <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+          <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200" role="progressbar" aria-valuenow={completedCount} aria-valuemin={0} aria-valuemax={anchors.length} aria-label="Deliverables progress">
             <div
               className="h-full bg-indigo-600 transition-all duration-300"
               style={{ width: `${(completedCount / anchors.length) * 100}%` }}
@@ -1166,9 +1276,10 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
                   <span
                     className={`inline-flex items-center justify-center h-7 w-7 rounded-md shrink-0 ${
                       isLinked
-                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-100'
-                        : 'bg-slate-100 text-slate-400 border border-slate-200'
+                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                        : 'bg-slate-100 text-slate-600 border border-slate-300'
                     }`}
+                    aria-hidden="true"
                   >
                     <AnchorIcon id={anchor.id} className="w-4 h-4" />
                   </span>
@@ -1178,13 +1289,14 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
                     </h3>
                     <span
                       className={`inline-flex items-center gap-1 text-[10px] font-medium ${
-                        isLinked ? 'text-emerald-700' : 'text-slate-400'
+                        isLinked ? 'text-emerald-800' : 'text-slate-600'
                       }`}
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${
-                          isLinked ? 'bg-emerald-500' : 'bg-slate-300'
+                          isLinked ? 'bg-emerald-600' : 'bg-slate-400'
                         }`}
+                        aria-hidden="true"
                       />
                       {isLinked ? 'Linked' : 'Pending Link'}
                     </span>
@@ -1195,40 +1307,58 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
                   <button
                     type="button"
                     onClick={() => handleStartEdit(anchor)}
-                    className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors"
+                    className="text-slate-500 hover:text-slate-800 p-1 rounded hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                     title={`Edit ${anchor.label} link`}
+                    aria-label={`Edit ${anchor.label} link`}
                   >
-                    <EditIcon className="w-3 h-3" />
+                    <EditIcon className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 )}
               </div>
 
               {isEditing ? (
-                <div className="space-y-1.5 pt-1">
-                  <input
-                    type="url"
-                    autoFocus
-                    value={editUrl}
-                    onChange={(e) => setEditUrl(e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, anchor.id)}
-                    placeholder="https://..."
-                    className="w-full text-xs px-2 py-1.5 border border-indigo-400 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600 bg-white"
-                  />
-                  <div className="flex items-center justify-end gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(null)}
-                      className="px-2 py-0.5 text-[11px] text-slate-500 hover:text-slate-700 rounded hover:bg-slate-100"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSave(anchor.id)}
-                      className="px-2 py-0.5 text-[11px] font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded shadow-2xs"
-                    >
-                      Save
-                    </button>
+                <div className="space-y-2 pt-1">
+                  <div>
+                    <label htmlFor={`deliverable-url-${anchor.id}`} className="sr-only">URL for {anchor.label}</label>
+                    <input
+                      id={`deliverable-url-${anchor.id}`}
+                      type="url"
+                      autoFocus
+                      value={editUrl}
+                      onChange={(e) => setEditUrl(e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, anchor.id)}
+                      placeholder="https://..."
+                      aria-label={`Deliverable link URL for ${anchor.label}`}
+                      className="w-full text-xs px-2 py-1.5 border border-indigo-400 rounded focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    <div className="flex items-center gap-1 text-[10px] text-slate-700">
+                      <label htmlFor={`deliverable-date-${anchor.id}`} className="shrink-0 font-medium">Date ({formatDate(editDate)}):</label>
+                      <input
+                        id={`deliverable-date-${anchor.id}`}
+                        type="date"
+                        value={editDate}
+                        onChange={(e) => setEditDate(e.target.value)}
+                        className="px-1.5 py-0.5 text-[10px] bg-slate-50 border border-slate-200 rounded text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="px-2 py-0.5 text-[11px] text-slate-600 hover:text-slate-800 rounded hover:bg-slate-100"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSave(anchor.id)}
+                        className="px-2 py-0.5 text-[11px] font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1238,23 +1368,36 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
                       href={anchor.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium truncate max-w-full hover:underline group"
+                      className="inline-flex items-center gap-1.5 text-xs text-indigo-700 hover:text-indigo-900 font-medium truncate max-w-full hover:underline group focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
                       title={anchor.url}
+                      aria-label={`Open ${anchor.label} link (opens in new tab)`}
                     >
                       <span className="truncate">{anchor.url.replace(/^https?:\/\//, '')}</span>
-                      <ExternalLinkIcon className="w-3 h-3 shrink-0 text-indigo-400 group-hover:text-indigo-600" />
+                      <ExternalLinkIcon className="w-3 h-3 shrink-0 text-indigo-500 group-hover:text-indigo-700" aria-hidden="true" />
                     </a>
                   ) : (
                     <button
                       type="button"
                       onClick={() => handleStartEdit(anchor)}
-                      className="text-xs text-slate-400 hover:text-indigo-600 font-medium flex items-center gap-1 transition-colors"
+                      className="text-xs text-slate-600 hover:text-indigo-700 font-medium flex items-center gap-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
+                      aria-label={`Add deliverable URL for ${anchor.label}`}
                     >
                       <span>+ Add deliverable URL</span>
                     </button>
                   )}
                 </div>
               )}
+
+              {/* Last Modified Date Footer */}
+              <div className="pt-2 border-t border-slate-200/70 flex items-center justify-between text-[10px] text-slate-600">
+                <span className="flex items-center gap-1 text-slate-600">
+                  <ClockIcon className="w-3 h-3 text-slate-500" aria-hidden="true" />
+                  <span>Last modified:</span>
+                </span>
+                <span className="font-semibold text-slate-800">
+                  {anchor.lastModified ? formatDate(anchor.lastModified) : (isLinked ? '24/10/2026' : 'Never')}
+                </span>
+              </div>
             </div>
           );
         })}
@@ -1307,13 +1450,14 @@ function TaskCard({
         if (dragActiveRef.current) return;
         onSelect && onSelect(task);
       }}
-      className={`rounded-lg border p-3.5 shadow-sm hover:shadow transition-all cursor-grab active:cursor-grabbing flex flex-col gap-2.5 text-left group border-l-4 ${
+      className={`rounded-lg border p-3.5 shadow-sm hover:shadow transition-all cursor-grab active:cursor-grabbing flex flex-col gap-2.5 text-left group border-l-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 ${
         isBug ? 'border-l-bug' : 'border-l-feature'
       } ${dueInfo.tintClass} ${
         isDragging ? 'opacity-40 scale-[0.98] border-dashed border-indigo-400 shadow-none' : ''
       }`}
       role="button"
       tabIndex={0}
+      aria-label={`Task: ${task.title}, type: ${task.type}, status: ${task.status}, assigned to: ${task.assignee}`}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -1326,19 +1470,20 @@ function TaskCard({
           <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
               isBug
-                ? 'bg-red-50 text-bug border border-red-200'
-                : 'bg-sky-50 text-feature border border-sky-200'
+                ? 'bg-red-50 text-red-800 border border-red-300'
+                : 'bg-sky-50 text-sky-800 border border-sky-300'
             }`}
           >
-            {isBug ? <BugIcon className="w-3 h-3 text-bug" /> : <FeatureIcon className="w-3 h-3 text-feature" />}
+            {isBug ? <BugIcon className="w-3 h-3 text-red-700" aria-hidden="true" /> : <FeatureIcon className="w-3 h-3 text-sky-700" aria-hidden="true" />}
             <span>{task.type}</span>
           </span>
           {hasContext && (
             <span
-              className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-1 rounded-md"
+              className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-indigo-800 bg-indigo-50 border border-indigo-200/90 px-2.5 py-1 rounded-md"
               title={`AI Context attached (${task.contextTool || 'General'})`}
+              aria-label={`AI Context attached: ${task.contextTool || 'General'}`}
             >
-              <PromptContextIcon className="w-3 h-3 text-indigo-600" />
+              <PromptContextIcon className="w-3 h-3 text-indigo-700" aria-hidden="true" />
               <span>{task.contextTool || 'AI'}</span>
             </span>
           )}
@@ -1351,10 +1496,11 @@ function TaskCard({
               <button
                 type="button"
                 onClick={() => onMoveTask(task.id, prevStage.id)}
-                className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-white transition-colors"
+                className="p-1 rounded text-slate-600 hover:text-slate-900 hover:bg-white transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-600"
                 title={`Move to ${prevStage.label}`}
+                aria-label={`Move task ${task.title} to ${prevStage.label}`}
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -1363,10 +1509,11 @@ function TaskCard({
               <button
                 type="button"
                 onClick={() => onMoveTask(task.id, nextStage.id)}
-                className="p-1 rounded text-slate-500 hover:text-indigo-600 hover:bg-white transition-colors"
+                className="p-1 rounded text-slate-600 hover:text-indigo-700 hover:bg-white transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-600"
                 title={`Move to ${nextStage.label}`}
+                aria-label={`Move task ${task.title} to ${nextStage.label}`}
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -1380,7 +1527,7 @@ function TaskCard({
           {task.title}
         </h3>
         {task.description && (
-          <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+          <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
             {task.description}
           </p>
         )}
@@ -1390,10 +1537,10 @@ function TaskCard({
         <div className="flex items-center">
           <span
             className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] border ${dueInfo.badgeClass}`}
-            title={`Due date: ${task.dueDate} (${dueInfo.label})`}
+            title={`Due date: ${formatDate(task.dueDate)} (${dueInfo.label})`}
           >
             <ClockIcon className="w-3 h-3 shrink-0" />
-            <span>{dueInfo.label}</span>
+            <span>{dueInfo.label} ({formatDate(task.dueDate)})</span>
           </span>
         </div>
       )}
@@ -1552,8 +1699,14 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs"
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="task-modal-heading"
     >
       <div
         className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
@@ -1561,11 +1714,11 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 id="task-modal-heading" className="text-base font-bold text-slate-900">
               {mode === 'create' ? 'Create New Task' : 'Edit Task'}
             </h2>
             {mode === 'edit' && (
-              <span className="font-mono text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+              <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-semibold">
                 {initialTask?.id}
               </span>
             )}
@@ -1573,10 +1726,11 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors"
+            className="text-slate-500 hover:text-slate-800 p-1 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             title="Close modal (Esc)"
+            aria-label="Close task dialog"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -1584,74 +1738,81 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-              Task Title <span className="text-red-500">*</span>
+            <label htmlFor="task-modal-title-input" className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+              Task Title <span className="text-red-600">*</span>
             </label>
             <input
+              id="task-modal-title-input"
               type="text"
               required
               autoFocus
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="e.g. Implement user authentication"
-              className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="task-modal-desc-input" className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
               Description
             </label>
             <textarea
+              id="task-modal-desc-input"
               rows="2"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Add details, acceptance criteria, or vibe notes..."
-              className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 resize-none"
+              className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 resize-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <span className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
                 Type
-              </label>
-              <div className="grid grid-cols-2 gap-2">
+              </span>
+              <div role="radiogroup" aria-label="Task type" className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={formData.type === 'feature'}
                   onClick={() => setFormData({ ...formData, type: 'feature' })}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border transition-all ${
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
                     formData.type === 'feature'
-                      ? 'bg-sky-50 text-feature border-feature ring-1 ring-feature'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-sky-50 text-sky-800 border-sky-400 ring-1 ring-sky-400'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
-                  <FeatureIcon className="w-3.5 h-3.5 text-feature" />
+                  <FeatureIcon className="w-3.5 h-3.5 text-sky-700" aria-hidden="true" />
                   <span>Feature</span>
                 </button>
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={formData.type === 'bug'}
                   onClick={() => setFormData({ ...formData, type: 'bug' })}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border transition-all ${
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
                     formData.type === 'bug'
-                      ? 'bg-red-50 text-bug border-bug ring-1 ring-bug'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-red-50 text-red-800 border-red-400 ring-1 ring-red-400'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
-                  <BugIcon className="w-3.5 h-3.5 text-bug" />
+                  <BugIcon className="w-3.5 h-3.5 text-red-700" aria-hidden="true" />
                   <span>Bug</span>
                 </button>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="task-modal-status-select" className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
                 Status
               </label>
               <select
+                id="task-modal-status-select"
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+                className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
               >
                 {STAGES.map((stage) => (
                   <option key={stage.id} value={stage.id}>
@@ -1664,19 +1825,21 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="task-modal-assignee-select" className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
                 Assignee
               </label>
               <div className="flex items-center gap-2">
                 <span
                   className={`inline-flex items-center justify-center h-8 w-8 rounded-full border text-xs font-bold shrink-0 ${selectedOwnerColors.bg} ${selectedOwnerColors.text} ${selectedOwnerColors.border}`}
+                  aria-hidden="true"
                 >
                   {getInitials(formData.assignee)}
                 </span>
                 <select
+                  id="task-modal-assignee-select"
                   value={formData.assignee}
                   onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
                 >
                   {teamMembers.map((member) => (
                     <option key={member} value={member}>
@@ -1689,21 +1852,22 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Due Date
+                <label htmlFor="task-modal-duedate-input" className="block text-xs font-semibold text-slate-800 uppercase tracking-wider">
+                  Due Date {formData.dueDate ? `(${formatDate(formData.dueDate)})` : ''}
                 </label>
                 {formData.dueDate && modalDueInfo.state !== 'none' && (
                   <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border ${modalDueInfo.badgeClass}`}>
-                    <ClockIcon className="w-2.5 h-2.5 shrink-0" />
+                    <ClockIcon className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
                     {modalDueInfo.label}
                   </span>
                 )}
               </div>
               <input
+                id="task-modal-duedate-input"
                 type="date"
                 value={formData.dueDate}
                 onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+                className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
               />
             </div>
           </div>
@@ -1711,14 +1875,14 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
           <div className="pt-2 border-t border-slate-200/80">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <label className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <PromptContextIcon className="w-3.5 h-3.5 text-indigo-600" />
+                <label htmlFor="task-modal-context-input" className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <PromptContextIcon className="w-3.5 h-3.5 text-indigo-600" aria-hidden="true" />
                   Prompt Context
                 </label>
-                <span className="text-[11px] text-slate-400">· Curated briefing for AI / handoffs</span>
+                <span className="text-[11px] text-slate-500">· Curated briefing for AI / handoffs</span>
               </div>
               {initialTask?.contextUpdatedAt && mode === 'edit' && (
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-slate-500 font-medium">
                   Updated {formatContextTime(initialTask.contextUpdatedAt)}
                 </span>
               )}
@@ -1726,17 +1890,19 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
 
             <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500 font-medium">Tool:</span>
-                <div className="flex flex-wrap gap-1">
+                <span className="text-xs text-slate-600 font-medium">Tool:</span>
+                <div role="radiogroup" aria-label="AI Tool" className="flex flex-wrap gap-1">
                   {CONTEXT_TOOLS.map((tool) => (
                     <button
                       key={tool}
                       type="button"
+                      role="radio"
+                      aria-checked={formData.contextTool === tool}
                       onClick={() => setFormData({ ...formData, contextTool: tool })}
-                      className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-600 ${
                         formData.contextTool === tool
-                          ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          ? 'bg-indigo-50 border-indigo-300 text-indigo-800 font-bold'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                       }`}
                     >
                       {tool}
@@ -1750,18 +1916,22 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
                 <div className="bg-slate-100 p-0.5 rounded flex items-center border border-slate-200">
                   <button
                     type="button"
+                    role="tab"
+                    aria-selected={contextMode === 'write'}
                     onClick={() => setContextMode('write')}
-                    className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
-                      contextMode === 'write' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                    className={`px-2 py-0.5 text-[10px] font-semibold rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-600 ${
+                      contextMode === 'write' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     Edit
                   </button>
                   <button
                     type="button"
+                    role="tab"
+                    aria-selected={contextMode === 'preview'}
                     onClick={() => setContextMode('preview')}
-                    className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
-                      contextMode === 'preview' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                    className={`px-2 py-0.5 text-[10px] font-semibold rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-600 ${
+                      contextMode === 'preview' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     Preview
@@ -1784,17 +1954,18 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
                       contextTool: formData.contextTool,
                     })
                   }
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors shadow-2xs"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 transition-colors shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                   title="Copy as formatted Prompt Context"
+                  aria-label="Copy prompt context to clipboard"
                 >
                   {isCopied ? (
                     <>
-                      <CheckIcon className="w-3 h-3 text-emerald-600" />
+                      <CheckIcon className="w-3 h-3 text-emerald-600" aria-hidden="true" />
                       <span className="text-emerald-700 font-bold">Copied!</span>
                     </>
                   ) : (
                     <>
-                      <CopyIcon className="w-3 h-3 text-indigo-600" />
+                      <CopyIcon className="w-3 h-3 text-indigo-600" aria-hidden="true" />
                       <span>Copy Prompt</span>
                     </>
                   )}
@@ -1804,14 +1975,16 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
 
             {contextMode === 'write' ? (
               <textarea
+                id="task-modal-context-input"
                 rows="4"
                 value={formData.context}
                 onChange={(e) => setFormData({ ...formData, context: e.target.value })}
                 placeholder="Paste the prompts, constraints, or configurations used for this task (Markdown supported: # headers, **bold**, `code`, etc)..."
-                className="w-full font-mono text-xs px-3 py-2.5 rounded-md border border-slate-300 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 leading-relaxed resize-none"
+                aria-label="AI Prompt Context markdown"
+                className="w-full font-mono text-xs px-3 py-2.5 rounded-md border border-slate-300 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 leading-relaxed resize-none"
               />
             ) : (
-              <div className="p-3 rounded-md border border-slate-200 bg-slate-50/50 min-h-[96px] max-h-48 overflow-y-auto">
+              <div className="p-3 rounded-md border border-slate-200 bg-slate-50/50 min-h-[96px] max-h-48 overflow-y-auto" tabIndex={0} aria-label="Markdown prompt context preview">
                 <MarkdownPreview content={formData.context} />
               </div>
             )}
@@ -1942,13 +2115,23 @@ export default function App() {
   const currentProjectAnchors = (() => {
     if (!currentProject) return [];
     const existing = anchors.filter((a) => (a.projectId || projects[0]?.id) === currentProject.id);
-    if (existing.length === 4) return existing;
-    return [
-      { id: 'presentation',  projectId: currentProject.id, label: 'Presentation',  url: null },
-      { id: 'demo',          projectId: currentProject.id, label: 'Demo',          url: null },
-      { id: 'report',        projectId: currentProject.id, label: 'Report',        url: null },
-      { id: 'documentation', projectId: currentProject.id, label: 'Documentation', url: null },
+    const slots = [
+      { id: 'presentation',  label: 'Presentation' },
+      { id: 'demo',          label: 'Demo' },
+      { id: 'report',        label: 'Report' },
+      { id: 'documentation', label: 'Documentation' },
     ];
+    return slots.map((slot) => {
+      const match = existing.find((a) => a.id === slot.id);
+      const initMatch = INITIAL_ANCHORS.find((a) => a.id === slot.id && a.projectId === currentProject.id);
+      return {
+        id: slot.id,
+        projectId: currentProject.id,
+        label: slot.label,
+        url: match?.url !== undefined ? match.url : (initMatch?.url || null),
+        lastModified: match?.lastModified || initMatch?.lastModified || (match?.url ? '2026-10-24' : null),
+      };
+    });
   })();
 
   const featureCount = projectTasks.filter((t) => t.type === 'feature').length;
@@ -1960,9 +2143,17 @@ export default function App() {
 
   // Upcoming deadlines for Dashboard: sort by due date, show first 3 tasks, but ensure all overdue & <24h tasks are shown
   const upcomingDeadlineTasks = (() => {
+    const parseDueDate = (d) => {
+      if (!d) return 0;
+      if (d.includes('/')) {
+        const [day, mon, yr] = d.split('/').map(Number);
+        return new Date(yr, mon - 1, day).getTime();
+      }
+      return new Date(d).getTime();
+    };
     const activeTasksWithDue = projectTasks
       .filter((t) => t.status !== 'done' && t.dueDate)
-      .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+      .sort((a, b) => (parseDueDate(a.dueDate) > parseDueDate(b.dueDate) ? 1 : -1));
 
     const urgentCount = activeTasksWithDue.filter((t) => {
       const status = getDueStatus(t.dueDate, t.status);
@@ -1983,13 +2174,17 @@ export default function App() {
   // Create new project (Name only - random string invite code generated)
   const handleCreateProject = (name) => {
     const inviteCode = generateRandomCode(6);
+    const today = new Date().toISOString().slice(0, 10);
     const newProj = {
       id: `proj-${Date.now()}`,
       name,
-      createdAt: new Date().toISOString().slice(0, 10),
+      createdAt: today,
       managers: [currentUser],
       manager: currentUser,
       members: [currentUser],
+      memberJoinDates: {
+        [currentUser]: today,
+      },
       inviteCode,
     };
     setProjects((prev) => [...prev, newProj]);
@@ -2018,10 +2213,15 @@ export default function App() {
       return;
     }
 
+    const today = new Date().toISOString().slice(0, 10);
     const updatedMembers = [...existingMembers, currentUser];
+    const updatedJoinDates = {
+      ...(foundProject.memberJoinDates || {}),
+      [currentUser]: today,
+    };
     setProjects((prev) =>
       prev.map((p) =>
-        p.id === foundProject.id ? { ...p, members: updatedMembers } : p
+        p.id === foundProject.id ? { ...p, members: updatedMembers, memberJoinDates: updatedJoinDates } : p
       )
     );
     setActiveProjectId(foundProject.id);
@@ -2119,11 +2319,14 @@ export default function App() {
     setProjects((prev) =>
       prev.map((p) => {
         const newMembers = (p.members || []).filter((m) => m !== targetUser);
+        const newJoinDates = { ...(p.memberJoinDates || {}) };
+        delete newJoinDates[targetUser];
         const currentPMs = getProjectManagers(p).filter((m) => m !== targetUser);
         const newPMs = currentPMs.length > 0 ? currentPMs : (newMembers.length > 0 ? [newMembers[0]] : [fallbackList[0]]);
         return {
           ...p,
           members: newMembers.length > 0 ? newMembers : [newPMs[0]],
+          memberJoinDates: newJoinDates,
           managers: newPMs,
           manager: newPMs[0],
         };
@@ -2192,9 +2395,11 @@ export default function App() {
     }
     if (window.confirm(`Remove ${memberName} from this project? They will no longer have access.`)) {
       const updatedMembers = projectMembers.filter((m) => m !== memberName);
+      const updatedJoinDates = { ...(currentProject.memberJoinDates || {}) };
+      delete updatedJoinDates[memberName];
       setProjects((prev) =>
         prev.map((p) =>
-          p.id === currentProject.id ? { ...p, members: updatedMembers } : p
+          p.id === currentProject.id ? { ...p, members: updatedMembers, memberJoinDates: updatedJoinDates } : p
         )
       );
       setTasks((prev) =>
@@ -2293,14 +2498,15 @@ export default function App() {
     triggerHandoffToast(newOwner);
   };
 
-  const handleUpdateAnchor = (id, newUrl) => {
+  const handleUpdateAnchor = (id, newUrl, customDate) => {
     if (!currentProject) return;
+    const modifiedDate = customDate || new Date().toISOString().slice(0, 10);
     setAnchors((prev) => {
       const exists = prev.some((a) => a.id === id && (a.projectId || projects[0]?.id) === currentProject.id);
       if (exists) {
         return prev.map((a) =>
           a.id === id && (a.projectId || projects[0]?.id) === currentProject.id
-            ? { ...a, url: newUrl }
+            ? { ...a, url: newUrl, lastModified: newUrl ? modifiedDate : null }
             : a
         );
       }
@@ -2312,6 +2518,7 @@ export default function App() {
           projectId: currentProject.id,
           label: slotDef?.label || id,
           url: newUrl,
+          lastModified: newUrl ? modifiedDate : null,
         },
       ];
     });
@@ -2387,6 +2594,14 @@ export default function App() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
+      {/* Skip to Main Content Link for Keyboard / Screen Reader Accessibility (WCAG 2.4.1) */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-indigo-700 focus:text-white focus:rounded-lg focus:shadow-xl focus:ring-2 focus:ring-white text-xs font-bold"
+      >
+        Skip to main content
+      </a>
+
       {/* Main View Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Bar with Project Breadcrumb, Navigation Tabs, and User Account Switcher */}
@@ -2396,17 +2611,19 @@ export default function App() {
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
-              className="md:hidden text-slate-500 hover:text-slate-800 p-1 rounded hover:bg-slate-100 shrink-0"
+              className="md:hidden text-slate-600 hover:text-slate-900 p-1.5 rounded hover:bg-slate-100 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
               title="Open projects sidebar"
+              aria-label="Open projects sidebar"
+              aria-expanded={mobileSidebarOpen}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
 
             {/* Active Project Title */}
             <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
-              <span className="text-xs font-semibold text-slate-400 hidden lg:inline uppercase tracking-wider">Project /</span>
+              <span className="text-xs font-semibold text-slate-500 hidden lg:inline uppercase tracking-wider">Project /</span>
               <h1 className="text-sm md:text-base font-bold text-slate-900 truncate">
                 {currentProject ? currentProject.name : 'No Accessible Project'}
               </h1>
@@ -2415,51 +2632,65 @@ export default function App() {
 
           {/* Section Navigation Tabs: Dashboard, Kanban, Members */}
           {currentProject && (
-            <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200/80 shrink-0">
-              <button
-                type="button"
-                onClick={() => setActiveTab('dashboard')}
-                className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  activeTab === 'dashboard'
-                    ? 'bg-white text-indigo-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                </svg>
-                <span className="hidden sm:inline">Dashboard</span>
-              </button>
+            <nav aria-label="Project sections" className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200/80 shrink-0">
+              <div role="tablist" aria-label="Project views" className="flex items-center gap-1">
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-dashboard"
+                  aria-selected={activeTab === 'dashboard'}
+                  aria-controls="panel-dashboard"
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+                    activeTab === 'dashboard'
+                      ? 'bg-white text-indigo-700 shadow-2xs'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                  </svg>
+                  <span className="hidden sm:inline">Dashboard</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('kanban')}
-                className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  activeTab === 'kanban'
-                    ? 'bg-white text-indigo-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                </svg>
-                <span className="hidden sm:inline">Kanban</span>
-              </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-kanban"
+                  aria-selected={activeTab === 'kanban'}
+                  aria-controls="panel-kanban"
+                  onClick={() => setActiveTab('kanban')}
+                  className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+                    activeTab === 'kanban'
+                      ? 'bg-white text-indigo-700 shadow-2xs'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                  </svg>
+                  <span className="hidden sm:inline">Kanban</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('members')}
-                className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  activeTab === 'members'
-                    ? 'bg-white text-indigo-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <span className="hidden sm:inline">Members</span>
-              </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-members"
+                  aria-selected={activeTab === 'members'}
+                  aria-controls="panel-members"
+                  onClick={() => setActiveTab('members')}
+                  className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+                    activeTab === 'members'
+                      ? 'bg-white text-indigo-700 shadow-2xs'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  <span className="hidden sm:inline">Members</span>
+                </button>
+              </div>
             </nav>
           )}
 
@@ -2468,7 +2699,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => setUserMenuOpen((prev) => !prev)}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 transition-all text-xs font-medium text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              aria-expanded={userMenuOpen}
+              aria-haspopup="true"
+              aria-label={`User menu for ${currentUser}`}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 transition-all text-xs font-medium text-slate-800 shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
               title="Switch user account (Prototype)"
             >
               <span
@@ -2483,15 +2717,16 @@ export default function App() {
                   </span>
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" title="Online" />
                 </div>
-                <span className="block text-[10px] text-slate-400 font-normal leading-tight mt-0.5">
+                <span className="block text-[10px] text-slate-600 font-normal leading-tight mt-0.5">
                   {currentProject && isCurrentUserPM ? 'Project Manager' : 'Team Member'}
                 </span>
               </div>
               <svg
-                className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`}
+                className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
+                aria-hidden="true"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
               </svg>
@@ -2505,7 +2740,7 @@ export default function App() {
               >
                 {/* Active Account Header */}
                 <div className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
                     Logged In As
                   </span>
                   <div className="flex items-center gap-2.5">
@@ -2515,10 +2750,10 @@ export default function App() {
                     <div className="min-w-0">
                       <span className="block text-xs font-bold text-slate-900 truncate">{currentUser}</span>
                       {userEmails && userEmails[currentUser] && (
-                        <span className="block text-[10px] text-slate-400 truncate">{userEmails[currentUser]}</span>
+                        <span className="block text-[10px] text-slate-600 truncate">{userEmails[currentUser]}</span>
                       )}
-                      <span className="block text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
+                      <span className="block text-[10px] text-emerald-700 font-medium flex items-center gap-1 mt-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 inline-block" />
                         Active Profile
                       </span>
                     </div>
@@ -2527,7 +2762,7 @@ export default function App() {
 
                 {/* Switch Account List */}
                 <div className="p-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1 block">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 px-2 py-1 block">
                     Switch Account
                   </span>
                   <div className="space-y-0.5 mt-0.5 max-h-44 overflow-y-auto">
@@ -2558,10 +2793,10 @@ export default function App() {
                             <div className="min-w-0">
                               <span className="block truncate leading-tight">{account}</span>
                               {userEmails && userEmails[account] && (
-                                <span className="block text-[10px] text-slate-400 truncate">{userEmails[account]}</span>
+                                <span className="block text-[10px] text-slate-600 truncate">{userEmails[account]}</span>
                               )}
                               {isManager && (
-                                <span className="block text-[9px] text-amber-600 font-normal">Project Manager</span>
+                                <span className="block text-[9px] text-amber-800 font-normal">Project Manager</span>
                               )}
                             </div>
                           </div>
@@ -2610,17 +2845,17 @@ export default function App() {
           </div>
         </header>
 
-        {/* Tab Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        {/* Tab Content Area with Skip Target */}
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 md:p-6 focus:outline-none">
           {/* EMPTY STATE: User is not a member of any project */}
           {!currentProject && (
             <div className="max-w-md mx-auto my-16 text-center bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
               <div className="h-16 w-16 mx-auto rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
-                <LockIcon className="w-8 h-8" />
+                <LockIcon className="w-8 h-8" aria-hidden="true" />
               </div>
               <div className="space-y-1">
                 <h2 className="text-lg font-bold text-slate-900">No Accessible Projects</h2>
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed">
                   You are signed in as <strong className="text-slate-800">{currentUser}</strong>. People who are not members of a project cannot view or modify its deliverables or tasks.
                 </p>
               </div>
@@ -2628,7 +2863,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => handleCreateProject(`New Project (${currentUser.split(' ')[0]})`)}
-                  className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                 >
                   + Create New Project
                 </button>
@@ -2638,7 +2873,7 @@ export default function App() {
                     const code = window.prompt('Enter project invite code (e.g. K9X2B7):');
                     if (code) handleJoinProject(code);
                   }}
-                  className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
                 >
                   Join with Code
                 </button>
@@ -2648,7 +2883,7 @@ export default function App() {
 
           {/* TAB 1: DASHBOARD (Side-by-side Overview & Deadlines, Deliverables immediately visible) */}
           {currentProject && activeTab === 'dashboard' && (
-            <div className="space-y-5 max-w-6xl mx-auto">
+            <div role="tabpanel" id="panel-dashboard" aria-labelledby="tab-dashboard" className="space-y-5 max-w-6xl mx-auto">
               {/* Row 1: Side-by-Side 50/50 Grid (Project Progress & Upcoming Deadlines) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
                 {/* Box 1: Project Header & Progress Stats (Half width) */}
@@ -2659,7 +2894,7 @@ export default function App() {
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
                           Active Project
                         </span>
-                        <span className="text-xs text-slate-400">Created {currentProject.createdAt || 'recently'}</span>
+                        <span className="text-xs text-slate-500">Created {formatDate(currentProject.createdAt) || 'recently'}</span>
                       </div>
                       <h2 className="text-lg md:text-xl font-bold text-slate-900 truncate">
                         {currentProject.name}
@@ -2669,12 +2904,12 @@ export default function App() {
                     {/* Completion Rate Pill */}
                     <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 flex items-center gap-3 shrink-0">
                       <div className="text-right">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Done</span>
+                        <span className="text-[10px] uppercase font-bold text-slate-600 tracking-wider block">Done</span>
                         <span className="text-lg font-black text-indigo-600 leading-none">
                           {projectTasks.length > 0 ? Math.round((doneCount / projectTasks.length) * 100) : 0}%
                         </span>
                       </div>
-                      <div className="w-12 h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="w-12 h-2 bg-slate-200 rounded-full overflow-hidden" role="progressbar" aria-valuenow={projectTasks.length > 0 ? Math.round((doneCount / projectTasks.length) * 100) : 0} aria-valuemin={0} aria-valuemax={100} aria-label="Project task completion percentage">
                         <div
                           className="h-full bg-indigo-600 transition-all duration-300"
                           style={{ width: `${projectTasks.length > 0 ? (doneCount / projectTasks.length) * 100 : 0}%` }}
@@ -2686,35 +2921,35 @@ export default function App() {
                   {/* Progress Statistics Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-slate-100">
                     <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2.5">
-                      <span className="text-[11px] text-slate-500 font-medium block">Total Tasks</span>
+                      <span className="text-[11px] text-slate-600 font-medium block">Total Tasks</span>
                       <span className="text-lg font-bold text-slate-900 mt-0.5 block">{projectTasks.length}</span>
-                      <span className="text-[10px] text-slate-500 font-medium block whitespace-nowrap">
+                      <span className="text-[10px] text-slate-600 font-medium block whitespace-nowrap">
                         {featureCount} {featureCount === 1 ? 'feat' : 'feats'} · {bugCount} {bugCount === 1 ? 'bug' : 'bugs'}
                       </span>
                     </div>
 
                     <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-lg p-2.5">
                       <span className="text-[11px] text-emerald-800 font-medium block">Completed</span>
-                      <span className="text-lg font-bold text-emerald-600 mt-0.5 block">{doneCount}</span>
+                      <span className="text-lg font-bold text-emerald-700 mt-0.5 block">{doneCount}</span>
                       <span className="text-[10px] text-emerald-700 font-medium">Shipped</span>
                     </div>
 
                     <div className="bg-sky-50/50 border border-sky-200/80 rounded-lg p-2.5">
                       <span className="text-[11px] text-sky-800 font-medium block">Remaining</span>
                       <span className="text-lg font-bold text-sky-700 mt-0.5 block">{remainingCount}</span>
-                      <span className="text-[10px] text-sky-600 font-medium">In flight</span>
+                      <span className="text-[10px] text-sky-700 font-medium">In flight</span>
                     </div>
 
                     <div className={`rounded-lg p-2.5 border ${
                       overdueCount > 0 ? 'bg-red-50/70 border-red-200 text-red-900' : 'bg-slate-50 border-slate-200/80 text-slate-900'
                     }`}>
-                      <span className={`text-[11px] font-medium block ${overdueCount > 0 ? 'text-red-700 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium block ${overdueCount > 0 ? 'text-red-700 font-semibold' : 'text-slate-600'}`}>
                         Overdue
                       </span>
-                      <span className={`text-lg font-bold mt-0.5 block ${overdueCount > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                      <span className={`text-lg font-bold mt-0.5 block ${overdueCount > 0 ? 'text-red-700' : 'text-slate-900'}`}>
                         {overdueCount}
                       </span>
-                      <span className={`text-[10px] ${overdueCount > 0 ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
+                      <span className={`text-[10px] ${overdueCount > 0 ? 'text-red-700 font-semibold' : 'text-slate-500'}`}>
                         {overdueCount > 0 ? 'Urgent' : 'All clear'}
                       </span>
                     </div>
@@ -2728,9 +2963,9 @@ export default function App() {
                       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                         Upcoming Deadlines
                       </h3>
-                      <span className="text-xs text-slate-400">· Schedule monitor</span>
+                      <span className="text-xs text-slate-500">· Schedule monitor</span>
                     </div>
-                    <span className="text-xs text-slate-500 font-medium">
+                    <span className="text-xs text-slate-600 font-medium">
                       {upcomingDeadlineTasks.length} scheduled
                     </span>
                   </div>
@@ -2745,8 +2980,17 @@ export default function App() {
                         return (
                           <div
                             key={task.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`View task ${task.title}, due ${formatDate(task.dueDate) || 'no date'}, status ${task.status}`}
                             onClick={() => handleOpenEditModal(task)}
-                            className={`p-2.5 rounded-lg border transition-all cursor-pointer hover:shadow-2xs flex items-center justify-between gap-2.5 ${
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleOpenEditModal(task);
+                              }
+                            }}
+                            className={`p-2.5 rounded-lg border transition-all cursor-pointer hover:shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 flex items-center justify-between gap-2.5 ${
                               isOverdue
                                 ? 'bg-red-50/50 border-red-200'
                                 : isWarning
@@ -2756,7 +3000,7 @@ export default function App() {
                           >
                             <div className="min-w-0">
                               <h4 className="text-xs font-semibold text-slate-900 truncate">{task.title}</h4>
-                              <p className="text-[10px] text-slate-500 truncate mt-0.5">Assigned to {task.assignee}</p>
+                              <p className="text-[10px] text-slate-600 truncate mt-0.5">Assigned to {task.assignee}</p>
                             </div>
 
                             <div className="shrink-0 text-right">
@@ -2764,13 +3008,13 @@ export default function App() {
                                 <ClockIcon className="w-2.5 h-2.5" />
                                 <span>{dueInfo.label}</span>
                               </span>
-                              <span className="block text-[10px] text-slate-400 mt-0.5">{task.dueDate}</span>
+                              <span className="block text-[10px] text-slate-500 mt-0.5">{formatDate(task.dueDate)}</span>
                             </div>
                           </div>
                         );
                       })
                     ) : (
-                      <div className="p-5 text-center border border-dashed border-slate-200 rounded-lg text-xs text-slate-400">
+                      <div className="p-5 text-center border border-dashed border-slate-200 rounded-lg text-xs text-slate-500">
                         No active tasks with upcoming deadlines in this project.
                       </div>
                     )}
@@ -2788,7 +3032,7 @@ export default function App() {
 
           {/* TAB 2: KANBAN */}
           {currentProject && activeTab === 'kanban' && (
-            <div className="space-y-4">
+            <div role="tabpanel" id="panel-kanban" aria-labelledby="tab-kanban" className="space-y-4">
               {/* Kanban Toolbar */}
               <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2823,7 +3067,8 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => handleOpenCreateModal('todo')}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md text-white bg-slate-900 hover:bg-slate-800 active:bg-slate-950 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 shrink-0 self-start sm:self-auto"
+                    aria-label="Add new task to project"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md text-white bg-slate-900 hover:bg-slate-800 active:bg-slate-950 transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 shrink-0 self-start sm:self-auto"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
@@ -2837,8 +3082,10 @@ export default function App() {
                   <div className="flex flex-wrap items-center gap-3">
                     {/* Filter by Team Member */}
                     <div className="flex items-center gap-1.5">
-                      <label className="text-slate-500 font-medium">Assignee:</label>
+                      <label htmlFor="kanban-filter-assignee" className="text-slate-700 font-medium">Assignee:</label>
                       <select
+                        id="kanban-filter-assignee"
+                        aria-label="Filter tasks by assignee"
                         value={filterAssignee || 'all'}
                         onChange={(e) => setFilterAssignee(e.target.value === 'all' ? null : e.target.value)}
                         className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer"
@@ -2854,31 +3101,37 @@ export default function App() {
 
                     {/* Filter by Type */}
                     <div className="flex items-center gap-1.5">
-                      <label className="text-slate-500 font-medium">Type:</label>
-                      <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200">
+                      <span id="kanban-filter-type-label" className="text-slate-700 font-medium">Type:</span>
+                      <div role="radiogroup" aria-labelledby="kanban-filter-type-label" className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200">
                         <button
                           type="button"
+                          role="radio"
+                          aria-checked={filterType === 'all'}
                           onClick={() => setFilterType('all')}
                           className={`px-2 py-0.5 text-[11px] font-semibold rounded ${
-                            filterType === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                            filterType === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
                           All
                         </button>
                         <button
                           type="button"
+                          role="radio"
+                          aria-checked={filterType === 'feature'}
                           onClick={() => setFilterType('feature')}
                           className={`px-2 py-0.5 text-[11px] font-semibold rounded ${
-                            filterType === 'feature' ? 'bg-white text-feature shadow-2xs' : 'text-slate-500 hover:text-feature'
+                            filterType === 'feature' ? 'bg-white text-feature shadow-2xs' : 'text-slate-600 hover:text-feature'
                           }`}
                         >
                           Features
                         </button>
                         <button
                           type="button"
+                          role="radio"
+                          aria-checked={filterType === 'bug'}
                           onClick={() => setFilterType('bug')}
                           className={`px-2 py-0.5 text-[11px] font-semibold rounded ${
-                            filterType === 'bug' ? 'bg-white text-bug shadow-2xs' : 'text-slate-500 hover:text-bug'
+                            filterType === 'bug' ? 'bg-white text-bug shadow-2xs' : 'text-slate-600 hover:text-bug'
                           }`}
                         >
                           Bugs
@@ -2888,8 +3141,10 @@ export default function App() {
 
                     {/* Filter by Due Date Status */}
                     <div className="flex items-center gap-1.5">
-                      <label className="text-slate-500 font-medium">Due Date:</label>
+                      <label htmlFor="kanban-filter-duedate" className="text-slate-700 font-medium">Due Date:</label>
                       <select
+                        id="kanban-filter-duedate"
+                        aria-label="Filter tasks by due date status"
                         value={filterDueStatus}
                         onChange={(e) => setFilterDueStatus(e.target.value)}
                         className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer"
@@ -2920,13 +3175,14 @@ export default function App() {
               </div>
 
               {/* Kanban Four-Column Board */}
-              <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pb-6">
                 {STAGES.map((stage) => {
                   const stageTasks = displayedTasks.filter((t) => t.status === stage.id);
                   const isDragOver = dragOverStageId === stage.id;
                   return (
                     <section
                       key={stage.id}
+                      aria-label={`${stage.label} stage, ${stageTasks.length} tasks`}
                       onDragOver={(e) => {
                         e.preventDefault();
                         e.dataTransfer.dropEffect = 'move';
@@ -2966,7 +3222,8 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => handleOpenCreateModal(stage.id)}
-                          className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-200/60 transition-colors"
+                          className="text-slate-500 hover:text-slate-700 p-1 rounded hover:bg-slate-200/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                          aria-label={`Add task to ${stage.label}`}
                           title={`Add task to ${stage.label}`}
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2999,7 +3256,7 @@ export default function App() {
                           <div className={`flex items-center justify-center h-28 rounded-lg border-2 border-dashed p-4 text-center text-xs font-medium transition-colors ${
                             isDragOver
                               ? 'border-indigo-400 bg-indigo-100/60 text-indigo-700'
-                              : 'border-slate-300/80 text-slate-400'
+                              : 'border-slate-300/80 text-slate-600'
                           }`}>
                             {isDragOver
                               ? `Drop task here for ${stage.label}`
@@ -3012,13 +3269,13 @@ export default function App() {
                     </section>
                   );
                 })}
-              </main>
+              </div>
             </div>
           )}
 
           {/* TAB 3: MEMBERS */}
           {currentProject && activeTab === 'members' && (
-            <div className="space-y-6 max-w-6xl mx-auto">
+            <div role="tabpanel" id="panel-members" aria-labelledby="tab-members" className="space-y-6 max-w-6xl mx-auto">
               {/* Project Management & Invite Code Bar */}
               <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -3027,7 +3284,7 @@ export default function App() {
                   </span>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                         Project Manager{projectManagers.length > 1 ? 's' : ''}
                       </span>
                     </div>
@@ -3040,10 +3297,10 @@ export default function App() {
                 {/* Random String Project Invite Code Display & Copy */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl">
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">
                       Team Invite Code
                     </span>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-[11px] text-slate-600">
                       Share with teammates to join from their sidebar
                     </span>
                   </div>
@@ -3054,7 +3311,8 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleCopyInviteCode(currentProject.inviteCode || 'K9X2B7')}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-colors shrink-0"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                      aria-label="Copy team invite code"
                       title="Copy invite code"
                     >
                       {copiedInviteCode ? (
@@ -3074,7 +3332,8 @@ export default function App() {
                       <button
                         type="button"
                         onClick={handleRegenerateInviteCode}
-                        className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-200/60 text-slate-500 hover:text-slate-800 transition-colors"
+                        className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-200/60 text-slate-600 hover:text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                        aria-label="Generate a new random invite code"
                         title="Generate a new random invite code"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3097,6 +3356,7 @@ export default function App() {
                   const colors = getMemberColors(member);
                   const isManager = isProjectManager(currentProject, member);
                   const isCurrentLoggedIn = member === currentUser;
+                  const joinedDate = getMemberJoinedDate(currentProject, member);
 
                   return (
                     <div
@@ -3120,12 +3380,12 @@ export default function App() {
                                   {member}
                                 </h3>
                                 {isManager ? (
-                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded flex items-center gap-0.5" title="Project Manager">
+                                  <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded flex items-center gap-0.5" title="Project Manager">
                                     <span>👑</span>
                                     <span>PM</span>
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                                  <span className="text-[10px] font-medium text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
                                     Member
                                   </span>
                                 )}
@@ -3135,7 +3395,7 @@ export default function App() {
                                   </span>
                                 )}
                               </div>
-                              <span className="text-xs text-slate-500">
+                              <span className="text-xs text-slate-600">
                                 {memberTasks.length} {memberTasks.length === 1 ? 'task' : 'tasks'} assigned
                               </span>
                             </div>
@@ -3146,7 +3406,8 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => handleRemoveMember(member)}
-                              className="text-slate-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                              className="text-slate-500 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                              aria-label={`Remove ${member} from project`}
                               title={`Remove ${member} from project`}
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3156,15 +3417,27 @@ export default function App() {
                           )}
                         </div>
 
+                        {/* Member Join Date Row */}
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-slate-700 flex items-center gap-1">
+                            <ClockIcon className="w-3 h-3 text-slate-500" aria-hidden="true" />
+                            <span>Date Joined:</span>
+                          </span>
+                          <span className="font-semibold text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                            {formatDate(joinedDate)}
+                          </span>
+                        </div>
+
                         {/* Project Manager Role Promotion / Demotion Controls */}
                         {isCurrentUserPM && !isCurrentLoggedIn && (
                           <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                            <span className="text-[11px] font-semibold text-slate-600">Role:</span>
+                            <span className="text-[11px] font-semibold text-slate-700">Role:</span>
                             {isManager ? (
                               <button
                                 type="button"
                                 onClick={() => handleDemoteMember(member)}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 rounded border border-amber-200 transition-colors"
+                                className="px-2 py-0.5 text-[11px] font-semibold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 rounded border border-amber-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
+                                aria-label={`Demote ${member} from Project Manager`}
                                 title="Demote to Team Member"
                               >
                                 Demote from PM
@@ -3173,7 +3446,8 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => handlePromoteMember(member)}
-                                className="px-2 py-0.5 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors"
+                                className="px-2 py-0.5 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                                aria-label={`Promote ${member} to Project Manager`}
                                 title="Promote to Project Manager"
                               >
                                 👑 Promote to PM
@@ -3186,25 +3460,25 @@ export default function App() {
                         <div className="grid grid-cols-4 gap-1 pt-2 border-t border-slate-100 text-center">
                           <div className="bg-slate-50 p-1.5 rounded">
                             <span className="block text-xs font-bold text-slate-700">{todoTasks.length}</span>
-                            <span className="text-[9px] uppercase font-semibold text-slate-400">To Do</span>
+                            <span className="text-[9px] uppercase font-semibold text-slate-600">To Do</span>
                           </div>
                           <div className="bg-indigo-50 p-1.5 rounded">
                             <span className="block text-xs font-bold text-indigo-700">{inProgressTasks.length}</span>
-                            <span className="text-[9px] uppercase font-semibold text-indigo-500">Doing</span>
+                            <span className="text-[9px] uppercase font-semibold text-indigo-700">Doing</span>
                           </div>
                           <div className="bg-amber-50 p-1.5 rounded">
-                            <span className="block text-xs font-bold text-amber-700">{reviewTasks.length}</span>
-                            <span className="text-[9px] uppercase font-semibold text-amber-500">Review</span>
+                            <span className="block text-xs font-bold text-amber-800">{reviewTasks.length}</span>
+                            <span className="text-[9px] uppercase font-semibold text-amber-800">Review</span>
                           </div>
                           <div className="bg-emerald-50 p-1.5 rounded">
-                            <span className="block text-xs font-bold text-emerald-700">{completedTasks.length}</span>
-                            <span className="text-[9px] uppercase font-semibold text-emerald-500">Done</span>
+                            <span className="block text-xs font-bold text-emerald-800">{completedTasks.length}</span>
+                            <span className="text-[9px] uppercase font-semibold text-emerald-800">Done</span>
                           </div>
                         </div>
 
                         {/* Assigned Tasks List */}
                         <div className="space-y-1.5 pt-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block">
                             Assigned Tasks:
                           </span>
                           {memberTasks.length > 0 ? (
@@ -3212,18 +3486,27 @@ export default function App() {
                               {memberTasks.map((task) => (
                                 <li
                                   key={task.id}
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`View task ${task.title}, status ${task.status}`}
                                   onClick={() => handleOpenEditModal(task)}
-                                  className="text-xs p-2 rounded-md bg-slate-50 hover:bg-slate-100 cursor-pointer border border-slate-200/60 flex items-center justify-between gap-2 transition-colors"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      handleOpenEditModal(task);
+                                    }
+                                  }}
+                                  className="text-xs p-2 rounded-md bg-slate-50 hover:bg-slate-100 cursor-pointer border border-slate-200/60 flex items-center justify-between gap-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                                 >
                                   <span className="truncate font-medium text-slate-800">{task.title}</span>
-                                  <span className="text-[10px] font-semibold text-slate-500 uppercase shrink-0">
+                                  <span className="text-[10px] font-semibold text-slate-600 uppercase shrink-0">
                                     {task.status}
                                   </span>
                                 </li>
                               ))}
                             </ul>
                           ) : (
-                            <p className="text-xs text-slate-400 italic">No tasks currently assigned</p>
+                            <p className="text-xs text-slate-600 italic">No tasks currently assigned</p>
                           )}
                         </div>
                       </div>
@@ -3234,7 +3517,8 @@ export default function App() {
                           setFilterAssignee(member);
                           setActiveTab('kanban');
                         }}
-                        className="w-full py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
+                        aria-label={`View ${member}'s tasks on Kanban Board`}
+                        className="w-full py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                       >
                         View on Kanban Board →
                       </button>
@@ -3244,7 +3528,7 @@ export default function App() {
               </div>
             </div>
           )}
-        </div>
+        </main>
       </div>
 
       {/* Task Modal for Add, Edit, Delete */}

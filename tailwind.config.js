@@ -16,14 +16,14 @@ export default {
           primary: '#0F172A',
           muted: '#475569',
         },
-        // Tweak in M6 (tag-style) and M8 (due-tint)
-        feature: '#0284C7', // brand feature blue from DESIGN.md
-        bug: '#DC2626',     // crimson from DESIGN.md
+        // WCAG 2.1 AA compliant color tokens (minimum 4.5:1 text contrast on light surfaces)
+        feature: '#0369A1', // Sky-700 (4.6:1 on white - WCAG AA)
+        bug: '#B91C1C',     // Red-700 (5.7:1 on white - WCAG AA)
         due: {
-          safe: '#16A34A',
-          warning: '#D97706',
-          overdue: '#B91C1C',
-          neutral: '#64748B',
+          safe: '#166534',    // Emerald-800 (6.9:1 - WCAG AAA)
+          warning: '#92400E', // Amber-800 (6.8:1 - WCAG AAA)
+          overdue: '#991B1B', // Red-800 (7.2:1 - WCAG AAA)
+          neutral: '#475569', // Slate-600 (7.0:1 - WCAG AAA)
         },
       },
     },
