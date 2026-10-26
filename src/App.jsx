@@ -1,50 +1,14 @@
 import { useState, useEffect } from 'react';
 
 /**
- * Vibecoding Project Tracker — starter scaffold.
+ * Vibecoding Project Tracker
  *
- * Where to start (build sequence in Phase 3):
- *   - M4  data-model    : render the four columns and the task cards below.
- *   - M5  crud-modal    : add the "+" button modal and the edit-on-click modal.
- *   - M6  tag-style     : feature vs. bug color coding (uses DESIGN.md §2 colors).
- *   - M7  task-owner    : assignee badge + "Hand off to..." dropdown.
- *   - M8  due-tint      : color cards by due date (uses DESIGN.md §2 due-state colors).
- *   - M9  context       : a curated Context briefing field on the modal.
- *   - M10 copy-prompt   : a "Copy as Prompt Context" button that serializes the task + context.
- *   - M11 anchors       : the Anchor Board above the Kanban.
- *   - M12 secret-sauce  : Multi-project workspaces with Dashboard, Kanban, and Members tabs!
- */
-
-/**
- * @typedef {Object} Project
- * @property {string} id
- * @property {string} name
- * @property {string} [description]
- * @property {string} createdAt
- */
-
-/**
- * @typedef {Object} Task
- * @property {string} id
- * @property {string} projectId
- * @property {string} title
- * @property {string} description
- * @property {'feature'|'bug'} type
- * @property {'todo'|'in-progress'|'review'|'done'} status
- * @property {string} assignee
- * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
- * @property {string} createdDate      ISO 'YYYY-MM-DD'
- * @property {string} context          M9 context — curated briefing for the next AI / teammate
- * @property {string|null} contextTool M9 context — 'Claude' | 'ChatGPT' | 'Cursor' | 'Lovable' | 'Replit' | 'Other'
- * @property {string|null} contextUpdatedAt M9 context — ISO timestamp set automatically on save
- */
-
-/**
- * @typedef {Object} Anchor
- * @property {'presentation'|'demo'|'report'|'documentation'} id
- * @property {string} projectId
- * @property {string} label
- * @property {string|null} url
+ * Core Features & Functional Requirements:
+ * - FR1 - FR5  : Project Management (Create, Edit details, Delete, Sidebar listing, Switch projects)
+ * - FR6 - FR13 : Project Dashboard (Overview, Upcoming deadlines, Progress stats, Overdue count, Deliverables)
+ * - FR14 - FR29: Kanban Board (4 fixed columns, Task CRUD, Title/Desc/Type, Quick column movement, Member assignment, Due date urgency, Filters by member/type/due date)
+ * - FR30 - FR34: AI Context (Prompts & generated output, AI model selector, Edit context, 1-click Copy, Markdown formatting)
+ * - FR35 - FR39: Team Management (Project members roster, Auto-assigned PM to creator, Clear PM identification, Invite new members, Remove members)
  */
 
 export const STAGES = [
@@ -64,12 +28,16 @@ export const INITIAL_PROJECTS = [
     name: 'Hackathon Project Tracker',
     description: 'Central project tracking Module 5 vibecoding deliverables, Kanban task states, and AI prompt context briefings.',
     createdAt: '2026-10-20',
+    manager: 'Saayam Mehmood',
+    members: ['Saayam Mehmood', 'Teammate B', 'Teammate C'],
   },
   {
     id: 'proj-landing',
     name: 'Marketing & Landing Page',
     description: 'Public marketing website, demo walkthrough videos, and landing page assets for product launch.',
     createdAt: '2026-10-21',
+    manager: 'Saayam Mehmood',
+    members: ['Saayam Mehmood', 'Teammate B'],
   },
 ];
 
@@ -124,14 +92,22 @@ export const TEAM_COLORS = {
   },
 };
 
+const PALETTES = [
+  { bg: 'bg-indigo-100',  text: 'text-indigo-800',  border: 'border-indigo-300',  ring: 'ring-indigo-400',  dot: 'bg-indigo-500' },
+  { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300', ring: 'ring-emerald-400', dot: 'bg-emerald-500' },
+  { bg: 'bg-amber-100',   text: 'text-amber-800',   border: 'border-amber-300',   ring: 'ring-amber-400',   dot: 'bg-amber-500' },
+  { bg: 'bg-purple-100',  text: 'text-purple-800',  border: 'border-purple-300',  ring: 'ring-purple-400',  dot: 'bg-purple-500' },
+  { bg: 'bg-rose-100',    text: 'text-rose-800',    border: 'border-rose-300',    ring: 'ring-rose-400',    dot: 'bg-rose-500' },
+  { bg: 'bg-cyan-100',    text: 'text-cyan-800',    border: 'border-cyan-300',    ring: 'ring-cyan-400',    dot: 'bg-cyan-500' },
+];
+
 export function getMemberColors(name) {
-  return TEAM_COLORS[name] || {
-    bg: 'bg-slate-100',
-    text: 'text-slate-800',
-    border: 'border-slate-300',
-    ring: 'ring-slate-400',
-    dot: 'bg-slate-500',
-  };
+  if (TEAM_COLORS[name]) return TEAM_COLORS[name];
+  if (!name) return PALETTES[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const index = Math.abs(hash) % PALETTES.length;
+  return PALETTES[index];
 }
 
 export function getDueStatus(dueDate, status) {
@@ -502,13 +478,68 @@ export function AnchorIcon({ id, className = 'w-4 h-4' }) {
 }
 
 /**
- * Project Sidebar with Title + Description creation inputs
+ * Markdown preview formatter for FR34
+ */
+function MarkdownPreview({ content }) {
+  if (!content || !content.trim()) {
+    return <p className="text-xs text-slate-400 italic">No prompt context or notes provided.</p>;
+  }
+
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-1.5 text-xs text-slate-700 font-sans leading-relaxed">
+      {lines.map((line, idx) => {
+        if (line.startsWith('### ')) {
+          return <h4 key={idx} className="font-bold text-slate-900 text-xs mt-2">{line.replace('### ', '')}</h4>;
+        }
+        if (line.startsWith('## ')) {
+          return <h3 key={idx} className="font-bold text-slate-900 text-sm mt-2">{line.replace('## ', '')}</h3>;
+        }
+        if (line.startsWith('# ')) {
+          return <h2 key={idx} className="font-bold text-slate-900 text-base mt-2">{line.replace('# ', '')}</h2>;
+        }
+        if (line.startsWith('- ') || line.startsWith('* ')) {
+          return (
+            <div key={idx} className="flex items-start gap-1.5 pl-2">
+              <span className="text-indigo-500 font-bold">•</span>
+              <span>{renderFormattedText(line.substring(2))}</span>
+            </div>
+          );
+        }
+        if (line.startsWith('```')) {
+          return <div key={idx} className="h-0.5 bg-slate-200 my-1" />;
+        }
+        if (line.trim() === '') {
+          return <div key={idx} className="h-1.5" />;
+        }
+        return <p key={idx}>{renderFormattedText(line)}</p>;
+      })}
+    </div>
+  );
+}
+
+function renderFormattedText(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={i} className="bg-slate-100 text-indigo-700 px-1 py-0.5 rounded font-mono text-[11px]">{part.slice(1, -1)}</code>;
+    }
+    return part;
+  });
+}
+
+/**
+ * Project Sidebar with Create (FR1), Edit details (FR2), Delete (FR3), List (FR4), Switch (FR5)
  */
 function ProjectSidebar({
   projects,
   activeProjectId,
   onSelectProject,
   onCreateProject,
+  onEditProject,
   onDeleteProject,
   tasks,
   isOpen,
@@ -518,6 +549,11 @@ function ProjectSidebar({
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
 
+  // Project editing state (FR2)
+  const [editingProjectId, setEditingProjectId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+
   const handleCreateSubmit = (e) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
@@ -525,6 +561,20 @@ function ProjectSidebar({
     setNewProjectName('');
     setNewProjectDesc('');
     setIsCreating(false);
+  };
+
+  const handleStartEdit = (project, e) => {
+    e.stopPropagation();
+    setEditingProjectId(project.id);
+    setEditName(project.name);
+    setEditDesc(project.description || '');
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    onEditProject(editingProjectId, editName.trim(), editDesc.trim());
+    setEditingProjectId(null);
   };
 
   return (
@@ -572,9 +622,12 @@ function ProjectSidebar({
           </span>
           <button
             type="button"
-            onClick={() => setIsCreating(true)}
+            onClick={() => {
+              setIsCreating(true);
+              setEditingProjectId(null);
+            }}
             className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-0.5 rounded transition-colors"
-            title="Create new project"
+            title="Create new project (FR1)"
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
@@ -583,7 +636,7 @@ function ProjectSidebar({
           </button>
         </div>
 
-        {/* Create Project Inline Form with Name and Description */}
+        {/* Create Project Form (FR1) */}
         {isCreating && (
           <form onSubmit={handleCreateSubmit} className="p-3 bg-slate-50 border-b border-slate-200 space-y-2">
             <div>
@@ -636,10 +689,70 @@ function ProjectSidebar({
           </form>
         )}
 
-        {/* Projects List */}
+        {/* Edit Project Inline Form (FR2) */}
+        {editingProjectId && (
+          <form onSubmit={handleSaveEdit} className="p-3 bg-indigo-50/50 border-b border-indigo-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+                Edit Project
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditingProjectId(null)}
+                className="text-slate-400 hover:text-slate-600 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                Project Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                autoFocus
+                required
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full px-2.5 py-1 text-xs bg-white border border-indigo-400 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                Description
+              </label>
+              <textarea
+                rows="2"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                className="w-full px-2.5 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-600 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setEditingProjectId(null)}
+                className="px-2 py-1 text-[11px] text-slate-500 hover:text-slate-700 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-2.5 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded shadow-2xs"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Projects List (FR4 & FR5) */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {projects.map((project) => {
             const isSelected = project.id === activeProjectId;
+            const isEditing = editingProjectId === project.id;
             const projectTaskCount = tasks.filter(
               (t) => (t.projectId || projects[0]?.id) === project.id
             ).length;
@@ -655,7 +768,7 @@ function ProjectSidebar({
                   isSelected
                     ? 'bg-indigo-50 text-indigo-900 font-semibold shadow-2xs border border-indigo-200/80'
                     : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-900'
-                }`}
+                } ${isEditing ? 'ring-2 ring-indigo-400' : ''}`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FolderIcon
@@ -673,7 +786,7 @@ function ProjectSidebar({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   <span
                     className={`min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold flex items-center justify-center ${
                       isSelected
@@ -684,6 +797,17 @@ function ProjectSidebar({
                     {projectTaskCount}
                   </span>
 
+                  {/* Edit Project Button (FR2) */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleStartEdit(project, e)}
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 p-0.5 rounded transition-opacity"
+                    title="Edit project details (FR2)"
+                  >
+                    <EditIcon className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Delete Project Button (FR3) */}
                   {projects.length > 1 && (
                     <button
                       type="button"
@@ -692,7 +816,7 @@ function ProjectSidebar({
                         onDeleteProject(project.id);
                       }}
                       className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-0.5 rounded transition-opacity"
-                      title="Delete project"
+                      title="Delete project (FR3)"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -710,7 +834,7 @@ function ProjectSidebar({
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             <span className="font-medium text-slate-700">Workspace active</span>
           </div>
-          <span className="text-[10px] text-slate-400 font-mono">v1.2</span>
+          <span className="text-[10px] text-slate-400 font-mono">v1.3</span>
         </div>
       </aside>
     </>
@@ -718,7 +842,7 @@ function ProjectSidebar({
 }
 
 /**
- * Reusable Team Activity Component (displayed in both Kanban and Members tabs)
+ * Team Activity Component (Displayed on Kanban tab for quick team pulse)
  */
 function TeamActivitySection({ team, projectTasks, filterAssignee, onToggleFilter }) {
   return (
@@ -795,7 +919,7 @@ function TeamActivitySection({ team, projectTasks, filterAssignee, onToggleFilte
 }
 
 /**
- * AnchorBoard Component
+ * AnchorBoard Component (FR10 - FR13)
  */
 function AnchorBoard({ anchors, onUpdateAnchor }) {
   const [editingId, setEditingId] = useState(null);
@@ -894,7 +1018,7 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
                     type="button"
                     onClick={() => handleStartEdit(anchor)}
                     className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors"
-                    title={`Edit ${anchor.label} link`}
+                    title={`Edit ${anchor.label} link (FR12)`}
                   >
                     <EditIcon className="w-3 h-3" />
                   </button>
@@ -948,7 +1072,7 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
                       onClick={() => handleStartEdit(anchor)}
                       className="text-xs text-slate-400 hover:text-indigo-600 font-medium flex items-center gap-1 transition-colors"
                     >
-                      <span>+ Add deliverable URL</span>
+                      <span>+ Add deliverable URL (FR11)</span>
                     </button>
                   )}
                 </div>
@@ -962,18 +1086,22 @@ function AnchorBoard({ anchors, onUpdateAnchor }) {
 }
 
 /**
- * TaskCard Component
+ * TaskCard Component with Quick Move (FR21), Handoff (FR23), and Urgency Indication (FR25)
  */
-function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, isCopied }) {
+function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, onMoveTask, isCopied, teamMembers }) {
   const isBug = task.type === 'bug';
   const ownerColors = getMemberColors(task.assignee);
   const dueInfo = getDueStatus(task.dueDate, task.status);
   const hasContext = Boolean(task.context && task.context.trim().length > 0);
 
+  const currentStageIndex = STAGES.findIndex((s) => s.id === task.status);
+  const prevStage = currentStageIndex > 0 ? STAGES[currentStageIndex - 1] : null;
+  const nextStage = currentStageIndex < STAGES.length - 1 ? STAGES[currentStageIndex + 1] : null;
+
   return (
     <article
       onClick={() => onSelect && onSelect(task)}
-      className={`rounded-lg border p-4 shadow-sm hover:shadow transition-all cursor-pointer flex flex-col gap-2.5 text-left group border-l-4 ${
+      className={`rounded-lg border p-3.5 shadow-sm hover:shadow transition-all cursor-pointer flex flex-col gap-2.5 text-left group border-l-4 ${
         isBug ? 'border-l-bug' : 'border-l-feature'
       } ${dueInfo.tintClass}`}
       role="button"
@@ -1002,6 +1130,34 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, isCopied }) {
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Quick Column Shift (FR21) */}
+          <div className="flex items-center bg-slate-100 rounded p-0.5 border border-slate-200" onClick={(e) => e.stopPropagation()}>
+            {prevStage && (
+              <button
+                type="button"
+                onClick={() => onMoveTask(task.id, prevStage.id)}
+                className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-white transition-colors"
+                title={`Move to ${prevStage.label}`}
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            {nextStage && (
+              <button
+                type="button"
+                onClick={() => onMoveTask(task.id, nextStage.id)}
+                className="p-1 rounded text-slate-500 hover:text-indigo-600 hover:bg-white transition-colors"
+                title={`Move to ${nextStage.label}`}
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={(e) => {
@@ -1013,7 +1169,7 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, isCopied }) {
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold'
                 : 'bg-white hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 border-slate-200 hover:border-indigo-200'
             }`}
-            title="Copy task + prompt context for AI (1 click)"
+            title="Copy task + prompt context for AI (FR33)"
           >
             {isCopied ? (
               <>
@@ -1088,12 +1244,12 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, isCopied }) {
               }
             }}
             className="text-[11px] font-medium bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer transition-colors shadow-2xs"
-            title="Hand off task to a teammate"
+            title="Hand off task to a teammate (FR23)"
           >
             <option value="" disabled>
               Hand off to...
             </option>
-            {TEAM.filter((member) => member !== task.assignee).map((member) => (
+            {teamMembers.filter((member) => member !== task.assignee).map((member) => (
               <option key={member} value={member}>
                 {member}
               </option>
@@ -1106,19 +1262,21 @@ function TaskCard({ task, onSelect, onHandoff, onCopyPrompt, isCopied }) {
 }
 
 /**
- * TaskModal Component
+ * TaskModal Component supporting Markdown view (FR34), AI Context (FR30 - FR33)
  */
-function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, onDelete, onCopyPrompt, isCopied }) {
+function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, onDelete, onCopyPrompt, isCopied, teamMembers }) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     type: 'feature',
     status: defaultStatus || 'todo',
-    assignee: TEAM[0] || '',
+    assignee: teamMembers[0] || 'Saayam Mehmood',
     dueDate: '',
     context: '',
     contextTool: 'Claude',
   });
+
+  const [contextMode, setContextMode] = useState('write'); // 'write' | 'preview'
 
   useEffect(() => {
     if (initialTask && mode === 'edit') {
@@ -1127,7 +1285,7 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
         description: initialTask.description || '',
         type: initialTask.type || 'feature',
         status: initialTask.status || 'todo',
-        assignee: initialTask.assignee || TEAM[0] || '',
+        assignee: initialTask.assignee || teamMembers[0] || 'Saayam Mehmood',
         dueDate: initialTask.dueDate || '',
         context: initialTask.context || '',
         contextTool: initialTask.contextTool || 'Claude',
@@ -1138,13 +1296,14 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
         description: '',
         type: 'feature',
         status: defaultStatus || 'todo',
-        assignee: TEAM[0] || '',
+        assignee: teamMembers[0] || 'Saayam Mehmood',
         dueDate: '',
         context: '',
         contextTool: 'Claude',
       });
     }
-  }, [initialTask, mode, defaultStatus, isOpen]);
+    setContextMode('write');
+  }, [initialTask, mode, defaultStatus, isOpen, teamMembers]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -1341,7 +1500,7 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
                   onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
                   className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
                 >
-                  {TEAM.map((member) => (
+                  {teamMembers.map((member) => (
                     <option key={member} value={member}>
                       {member}
                     </option>
@@ -1408,46 +1567,76 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  onCopyPrompt({
-                    ...(initialTask || {}),
-                    id: initialTask?.id || 'NEW-TASK',
-                    title: formData.title,
-                    description: formData.description,
-                    type: formData.type,
-                    status: formData.status,
-                    assignee: formData.assignee,
-                    dueDate: formData.dueDate,
-                    context: formData.context,
-                    contextTool: formData.contextTool,
-                  })
-                }
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors shadow-2xs"
-                title="Copy as formatted Prompt Context"
-              >
-                {isCopied ? (
-                  <>
-                    <CheckIcon className="w-3 h-3 text-emerald-600" />
-                    <span className="text-emerald-700 font-bold">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <CopyIcon className="w-3 h-3 text-indigo-600" />
-                    <span>Copy Prompt</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-1.5">
+                {/* Markdown View Toggle (FR34) */}
+                <div className="bg-slate-100 p-0.5 rounded flex items-center border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setContextMode('write')}
+                    className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
+                      contextMode === 'write' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setContextMode('preview')}
+                    className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
+                      contextMode === 'preview' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Preview
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    onCopyPrompt({
+                      ...(initialTask || {}),
+                      id: initialTask?.id || 'NEW-TASK',
+                      title: formData.title,
+                      description: formData.description,
+                      type: formData.type,
+                      status: formData.status,
+                      assignee: formData.assignee,
+                      dueDate: formData.dueDate,
+                      context: formData.context,
+                      contextTool: formData.contextTool,
+                    })
+                  }
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors shadow-2xs"
+                  title="Copy as formatted Prompt Context (FR33)"
+                >
+                  {isCopied ? (
+                    <>
+                      <CheckIcon className="w-3 h-3 text-emerald-600" />
+                      <span className="text-emerald-700 font-bold">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <CopyIcon className="w-3 h-3 text-indigo-600" />
+                      <span>Copy Prompt</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
-            <textarea
-              rows="4"
-              value={formData.context}
-              onChange={(e) => setFormData({ ...formData, context: e.target.value })}
-              placeholder="Paste the prompts, constraints, or configurations used for this task (Markdown supported)..."
-              className="w-full font-mono text-xs px-3 py-2.5 rounded-md border border-slate-300 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 leading-relaxed resize-none"
-            />
+            {contextMode === 'write' ? (
+              <textarea
+                rows="4"
+                value={formData.context}
+                onChange={(e) => setFormData({ ...formData, context: e.target.value })}
+                placeholder="Paste the prompts, constraints, or configurations used for this task (Markdown supported: # headers, **bold**, `code`, etc)..."
+                className="w-full font-mono text-xs px-3 py-2.5 rounded-md border border-slate-300 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 leading-relaxed resize-none"
+              />
+            ) : (
+              <div className="p-3 rounded-md border border-slate-200 bg-slate-50/50 min-h-[96px] max-h-48 overflow-y-auto">
+                <MarkdownPreview content={formData.context} />
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
@@ -1458,7 +1647,7 @@ function TaskModal({ isOpen, mode, initialTask, defaultStatus, onClose, onSave, 
                   onClick={handleDelete}
                   className="px-3 py-2 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
                 >
-                  Delete Task
+                  Delete Task (FR17)
                 </button>
               )}
             </div>
@@ -1506,14 +1695,29 @@ export default function App() {
 
   const [activeToast, setActiveToast] = useState(null);
   const [copiedTaskId, setCopiedTaskId] = useState(null);
+
+  // Kanban filters (FR27, FR28, FR29)
   const [filterAssignee, setFilterAssignee] = useState(null);
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'feature' | 'bug'
+  const [filterDueStatus, setFilterDueStatus] = useState('all'); // 'all' | 'overdue' | 'due24' | 'safe'
+
+  // Invite member input for Members tab (FR38)
+  const [newMemberName, setNewMemberName] = useState('');
 
   // Ensure active project exists or fallback to first
   const currentProject = projects.find((p) => p.id === activeProjectId) || projects[0] || {
     id: 'proj-default',
     name: 'General Project',
     description: '',
+    manager: 'Saayam Mehmood',
+    members: TEAM,
   };
+
+  // Derive dynamic project members and manager (FR35 - FR39)
+  const projectMembers = currentProject.members && currentProject.members.length > 0
+    ? currentProject.members
+    : TEAM;
+  const projectManager = currentProject.manager || projectMembers[0] || 'Saayam Mehmood';
 
   // Filter tasks belonging to current active project
   const projectTasks = tasks.filter((t) => (t.projectId || projects[0]?.id) === currentProject.id);
@@ -1533,8 +1737,15 @@ export default function App() {
   const featureCount = projectTasks.filter((t) => t.type === 'feature').length;
   const bugCount = projectTasks.filter((t) => t.type === 'bug').length;
   const doneCount = projectTasks.filter((t) => t.status === 'done').length;
-  const overdueCount = projectTasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'overdue').length;
+  const remainingCount = projectTasks.length - doneCount;
+  const overdueTasks = projectTasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'overdue');
+  const overdueCount = overdueTasks.length;
   const warningCount = projectTasks.filter((t) => getDueStatus(t.dueDate, t.status).state === 'warning').length;
+
+  // Upcoming deadlines for Dashboard (FR7)
+  const upcomingDeadlineTasks = projectTasks
+    .filter((t) => t.status !== 'done' && t.dueDate)
+    .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
 
   const showToast = (message) => {
     setActiveToast(message);
@@ -1543,12 +1754,15 @@ export default function App() {
     }, 3500);
   };
 
+  // FR1: Create new project (creator becomes PM - FR36)
   const handleCreateProject = (name, description) => {
     const newProj = {
       id: `proj-${Date.now()}`,
       name,
       description: description || '',
       createdAt: new Date().toISOString().slice(0, 10),
+      manager: 'Saayam Mehmood', // Auto assigned PM role to creator (FR36)
+      members: ['Saayam Mehmood', 'Teammate B', 'Teammate C'],
     };
     setProjects((prev) => [...prev, newProj]);
     setActiveProjectId(newProj.id);
@@ -1556,6 +1770,17 @@ export default function App() {
     showToast(`Project "${name}" created`);
   };
 
+  // FR2: Edit existing project details
+  const handleEditProject = (projId, newName, newDesc) => {
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === projId ? { ...p, name: newName, description: newDesc } : p
+      )
+    );
+    showToast(`Project details updated`);
+  };
+
+  // FR3: Delete existing project
   const handleDeleteProject = (projId) => {
     if (projects.length <= 1) return;
     if (window.confirm('Delete this project and all its tasks?')) {
@@ -1566,6 +1791,51 @@ export default function App() {
         setActiveProjectId(remaining[0].id);
       }
       showToast('Project deleted');
+    }
+  };
+
+  // FR38: Invite new member to project
+  const handleInviteMember = (e) => {
+    e.preventDefault();
+    const trimmed = newMemberName.trim();
+    if (!trimmed) return;
+    if (projectMembers.includes(trimmed)) {
+      showToast(`${trimmed} is already a member`);
+      return;
+    }
+
+    const updatedMembers = [...projectMembers, trimmed];
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === currentProject.id ? { ...p, members: updatedMembers } : p
+      )
+    );
+    setNewMemberName('');
+    showToast(`${trimmed} invited to project`);
+  };
+
+  // FR39: Remove member from project
+  const handleRemoveMember = (memberName) => {
+    if (memberName === projectManager) {
+      alert('The Project Manager cannot be removed.');
+      return;
+    }
+    if (window.confirm(`Remove ${memberName} from this project?`)) {
+      const updatedMembers = projectMembers.filter((m) => m !== memberName);
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === currentProject.id ? { ...p, members: updatedMembers } : p
+        )
+      );
+      // Reassign any tasks assigned to this member to project manager
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.projectId === currentProject.id && t.assignee === memberName
+            ? { ...t, assignee: projectManager }
+            : t
+        )
+      );
+      showToast(`${memberName} removed from project`);
     }
   };
 
@@ -1593,6 +1863,15 @@ export default function App() {
 
   const triggerHandoffToast = (newOwner) => {
     showToast(`Task handed off to ${newOwner}`);
+  };
+
+  // FR21: Move task between columns
+  const handleMoveTask = (taskId, targetStatus) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: targetStatus } : t))
+    );
+    const targetStage = STAGES.find((s) => s.id === targetStatus);
+    showToast(`Task moved to ${targetStage ? targetStage.label : targetStatus}`);
   };
 
   const handleCopyPromptContext = async (task) => {
@@ -1666,21 +1945,36 @@ export default function App() {
     showToast(newUrl ? 'Deliverable link updated' : 'Deliverable link removed');
   };
 
-  const displayedTasks = filterAssignee
-    ? projectTasks.filter((t) => t.assignee === filterAssignee)
-    : projectTasks;
+  // Filter tasks based on member (FR27), type (FR28), and due date status (FR29)
+  const displayedTasks = projectTasks.filter((task) => {
+    if (filterAssignee && task.assignee !== filterAssignee) return false;
+    if (filterType !== 'all' && task.type !== filterType) return false;
+    if (filterDueStatus !== 'all') {
+      const dueStatus = getDueStatus(task.dueDate, task.status);
+      if (filterDueStatus === 'overdue' && dueStatus.state !== 'overdue') return false;
+      if (filterDueStatus === 'due24' && dueStatus.state !== 'warning') return false;
+      if (filterDueStatus === 'safe' && dueStatus.state !== 'safe') return false;
+      if (filterDueStatus === 'none' && dueStatus.state !== 'none') return false;
+    }
+    return true;
+  });
+
+  const isFiltering = Boolean(filterAssignee || filterType !== 'all' || filterDueStatus !== 'all');
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
-      {/* Sidebar for Projects */}
+    <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
+      {/* Sidebar for Projects (FR4 & FR5) */}
       <ProjectSidebar
         projects={projects}
         activeProjectId={currentProject.id}
         onSelectProject={(id) => {
           setActiveProjectId(id);
           setFilterAssignee(null);
+          setFilterType('all');
+          setFilterDueStatus('all');
         }}
         onCreateProject={handleCreateProject}
+        onEditProject={handleEditProject}
         onDeleteProject={handleDeleteProject}
         tasks={tasks}
         isOpen={mobileSidebarOpen}
@@ -1689,7 +1983,7 @@ export default function App() {
 
       {/* Main View Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Compact Top Bar with Project Breadcrumb and Section Tabs */}
+        {/* Compact Top Bar */}
         <header className="h-14 bg-white border-b border-slate-200/90 px-4 md:px-6 flex items-center justify-between gap-4 shrink-0 shadow-2xs">
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Hamburger */}
@@ -1704,7 +1998,7 @@ export default function App() {
               </svg>
             </button>
 
-            {/* Active Project Title (No tagline) */}
+            {/* Active Project Title */}
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-xs font-semibold text-slate-400 hidden sm:inline uppercase tracking-wider">Project /</span>
               <h1 className="text-sm md:text-base font-bold text-slate-900 truncate">
@@ -1764,46 +2058,141 @@ export default function App() {
 
         {/* Tab Content Area */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {/* TAB 1: DASHBOARD */}
+          {/* TAB 1: DASHBOARD (FR6 - FR13) */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6 max-w-6xl mx-auto">
-              {/* Project Description Card */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1.5 max-w-2xl">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
-                      Active Project
-                    </span>
-                    <span className="text-xs text-slate-400">Created {currentProject.createdAt || 'recently'}</span>
+              {/* Project Header Card */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1.5 max-w-2xl">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        Active Project
+                      </span>
+                      <span className="text-xs text-slate-400">Created {currentProject.createdAt || 'recently'}</span>
+                      <span className="text-xs text-slate-400">· PM: <strong className="text-slate-700">{projectManager}</strong></span>
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      {currentProject.name}
+                    </h2>
+                    <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
+                      {currentProject.description || 'No description provided for this project yet. Edit or add details from the sidebar.'}
+                    </p>
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900">
-                    {currentProject.name}
-                  </h2>
-                  <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
-                    {currentProject.description || 'No description provided for this project yet. Edit or add details from the sidebar.'}
-                  </p>
+
+                  {/* Completion Rate Badge */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center gap-4 shrink-0">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Completion Rate</span>
+                      <span className="text-2xl font-black text-indigo-600">
+                        {projectTasks.length > 0 ? Math.round((doneCount / projectTasks.length) * 100) : 0}%
+                      </span>
+                    </div>
+                    <div className="w-20 h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-600 transition-all duration-300"
+                        style={{ width: `${projectTasks.length > 0 ? (doneCount / projectTasks.length) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Quick Project Metrics */}
-                <div className="grid grid-cols-3 gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 md:border-l border-slate-200 md:pl-5">
-                  <div className="text-center px-2">
-                    <span className="block text-lg font-bold text-slate-900">{projectTasks.length}</span>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide">Tasks</span>
+                {/* Progress Statistics (FR8 & FR9) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100">
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
+                    <span className="text-xs text-slate-500 font-medium block">Total Tasks</span>
+                    <span className="text-xl font-bold text-slate-900 mt-0.5 block">{projectTasks.length}</span>
+                    <span className="text-[10px] text-slate-400">{featureCount} features, {bugCount} bugs</span>
                   </div>
-                  <div className="text-center px-2">
-                    <span className="block text-lg font-bold text-emerald-600">{doneCount}</span>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide">Done</span>
+
+                  <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-lg p-3">
+                    <span className="text-xs text-emerald-800 font-medium block">Completed Tasks</span>
+                    <span className="text-xl font-bold text-emerald-600 mt-0.5 block">{doneCount}</span>
+                    <span className="text-[10px] text-emerald-700 font-medium">Shipped & Done</span>
                   </div>
-                  <div className="text-center px-2">
-                    <span className="block text-lg font-bold text-indigo-600">
-                      {projectTasks.length > 0 ? Math.round((doneCount / projectTasks.length) * 100) : 0}%
+
+                  <div className="bg-sky-50/50 border border-sky-200/80 rounded-lg p-3">
+                    <span className="text-xs text-sky-800 font-medium block">Remaining Tasks</span>
+                    <span className="text-xl font-bold text-sky-700 mt-0.5 block">{remainingCount}</span>
+                    <span className="text-[10px] text-sky-600 font-medium">In flight & planned</span>
+                  </div>
+
+                  <div className={`rounded-lg p-3 border ${
+                    overdueCount > 0 ? 'bg-red-50/70 border-red-200 text-red-900' : 'bg-slate-50 border-slate-200/80 text-slate-900'
+                  }`}>
+                    <span className={`text-xs font-medium block ${overdueCount > 0 ? 'text-red-700 font-semibold' : 'text-slate-500'}`}>
+                      Overdue Tasks (FR9)
                     </span>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide">Rate</span>
+                    <span className={`text-xl font-bold mt-0.5 block ${overdueCount > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                      {overdueCount}
+                    </span>
+                    <span className={`text-[10px] ${overdueCount > 0 ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
+                      {overdueCount > 0 ? 'Needs immediate attention' : 'No overdue tasks'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Deliverable Anchor Board */}
+              {/* Upcoming Deadlines & Project Activity Overview (FR7) */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Upcoming Deadlines & Project Schedule (FR7)
+                    </h3>
+                    <span className="text-xs text-slate-400">· Timeline monitor</span>
+                  </div>
+                  <span className="text-xs text-slate-500">
+                    {upcomingDeadlineTasks.length} {upcomingDeadlineTasks.length === 1 ? 'task' : 'tasks'} scheduled
+                  </span>
+                </div>
+
+                {upcomingDeadlineTasks.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                    {upcomingDeadlineTasks.map((task) => {
+                      const dueInfo = getDueStatus(task.dueDate, task.status);
+                      const isOverdue = dueInfo.state === 'overdue';
+                      const isWarning = dueInfo.state === 'warning';
+
+                      return (
+                        <div
+                          key={task.id}
+                          onClick={() => handleOpenEditModal(task)}
+                          className={`p-3 rounded-lg border transition-all cursor-pointer hover:shadow-xs flex flex-col justify-between gap-2 ${
+                            isOverdue
+                              ? 'bg-red-50/40 border-red-200'
+                              : isWarning
+                              ? 'bg-amber-50/40 border-amber-200'
+                              : 'bg-slate-50/60 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-mono text-[10px] text-slate-400 font-semibold">{task.id}</span>
+                            <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${dueInfo.badgeClass}`}>
+                              <ClockIcon className="w-2.5 h-2.5" />
+                              <span>{dueInfo.label}</span>
+                            </span>
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-semibold text-slate-900 truncate">{task.title}</h4>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">Assigned to {task.assignee}</p>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-200/60">
+                            <span>Due {task.dueDate}</span>
+                            <span className="capitalize font-medium text-slate-600">{task.status}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-lg text-xs text-slate-400">
+                    No active tasks with due dates in this project. Assign dates in the Kanban board to track deadlines here.
+                  </div>
+                )}
+              </div>
+
+              {/* Deliverable Anchor Board (FR10 - FR13) */}
               <AnchorBoard
                 anchors={currentProjectAnchors}
                 onUpdateAnchor={handleUpdateAnchor}
@@ -1828,68 +2217,156 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: KANBAN */}
+          {/* TAB 2: KANBAN (FR14 - FR29) */}
           {activeTab === 'kanban' && (
-            <div className="space-y-5">
-              {/* Kanban Toolbar: Task health counters + "+ New Task" button */}
-              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                {/* Task indicators (moved here from top bar) */}
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="font-semibold text-slate-700">Project Tasks:</span>
-                  <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                    {projectTasks.length} total
-                  </span>
-                  <span className="text-slate-300">|</span>
-                  <span className="inline-flex items-center gap-1 font-semibold text-feature">
-                    <FeatureIcon className="w-3 h-3 text-feature" />
-                    {featureCount} features
-                  </span>
-                  <span className="text-slate-300">|</span>
-                  <span className="inline-flex items-center gap-1 font-semibold text-bug">
-                    <BugIcon className="w-3 h-3 text-bug" />
-                    {bugCount} bugs
-                  </span>
-                  {(overdueCount > 0 || warningCount > 0) && (
-                    <>
-                      <span className="text-slate-300">|</span>
-                      {overdueCount > 0 && (
-                        <span className="inline-flex items-center gap-1 font-semibold text-[#B91C1C]">
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#B91C1C] animate-pulse" />
-                          {overdueCount} overdue
-                        </span>
-                      )}
-                      {warningCount > 0 && (
-                        <span className="inline-flex items-center gap-1 font-semibold text-[#D97706]">
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#D97706]" />
-                          {warningCount} due soon
-                        </span>
-                      )}
-                    </>
-                  )}
+            <div className="space-y-4">
+              {/* Kanban Toolbar: Task metrics + Filter bar (FR27, FR28, FR29) + "+ New Task" */}
+              <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  {/* Task indicators */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-semibold text-slate-700">Project Tasks:</span>
+                    <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      {projectTasks.length} total
+                    </span>
+                    <span className="text-slate-300">|</span>
+                    <span className="inline-flex items-center gap-1 font-semibold text-feature">
+                      <FeatureIcon className="w-3 h-3 text-feature" />
+                      {featureCount} features
+                    </span>
+                    <span className="text-slate-300">|</span>
+                    <span className="inline-flex items-center gap-1 font-semibold text-bug">
+                      <BugIcon className="w-3 h-3 text-bug" />
+                      {bugCount} bugs
+                    </span>
+                    {(overdueCount > 0 || warningCount > 0) && (
+                      <>
+                        <span className="text-slate-300">|</span>
+                        {overdueCount > 0 && (
+                          <span className="inline-flex items-center gap-1 font-semibold text-[#B91C1C]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#B91C1C] animate-pulse" />
+                            {overdueCount} overdue
+                          </span>
+                        )}
+                        {warningCount > 0 && (
+                          <span className="inline-flex items-center gap-1 font-semibold text-[#D97706]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#D97706]" />
+                            {warningCount} due soon
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* "+ New Task" Button (FR15) */}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCreateModal('todo')}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md text-white bg-slate-900 hover:bg-slate-800 active:bg-slate-950 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 shrink-0 self-start sm:self-auto"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>New Task</span>
+                  </button>
                 </div>
 
-                {/* "+ New Task" Button (moved here from top bar) */}
-                <button
-                  type="button"
-                  onClick={() => handleOpenCreateModal('todo')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md text-white bg-slate-900 hover:bg-slate-800 active:bg-slate-950 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 shrink-0 self-start sm:self-auto"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span>New Task</span>
-                </button>
+                {/* Filter Controls Bar (FR27, FR28, FR29) */}
+                <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* FR27: Filter by Team Member */}
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-slate-500 font-medium">Assignee:</label>
+                      <select
+                        value={filterAssignee || 'all'}
+                        onChange={(e) => setFilterAssignee(e.target.value === 'all' ? null : e.target.value)}
+                        className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer"
+                      >
+                        <option value="all">All Members</option>
+                        {projectMembers.map((member) => (
+                          <option key={member} value={member}>
+                            {member}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* FR28: Filter by Type */}
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-slate-500 font-medium">Type:</label>
+                      <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => setFilterType('all')}
+                          className={`px-2 py-0.5 text-[11px] font-semibold rounded ${
+                            filterType === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFilterType('feature')}
+                          className={`px-2 py-0.5 text-[11px] font-semibold rounded ${
+                            filterType === 'feature' ? 'bg-white text-feature shadow-2xs' : 'text-slate-500 hover:text-feature'
+                          }`}
+                        >
+                          Features
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFilterType('bug')}
+                          className={`px-2 py-0.5 text-[11px] font-semibold rounded ${
+                            filterType === 'bug' ? 'bg-white text-bug shadow-2xs' : 'text-slate-500 hover:text-bug'
+                          }`}
+                        >
+                          Bugs
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* FR29: Filter by Due Date Status */}
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-slate-500 font-medium">Due Date:</label>
+                      <select
+                        value={filterDueStatus}
+                        onChange={(e) => setFilterDueStatus(e.target.value)}
+                        className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-600 cursor-pointer"
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="due24">Due &lt;24h</option>
+                        <option value="safe">Due &gt;24h / Safe</option>
+                        <option value="none">No Due Date</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {isFiltering && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilterAssignee(null);
+                        setFilterType('all');
+                        setFilterDueStatus('all');
+                      }}
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Team Activity Section (Duplicated in Kanban) */}
+              {/* Team Activity Section (in Kanban) */}
               <TeamActivitySection
-                team={TEAM}
+                team={projectMembers}
                 projectTasks={projectTasks}
                 filterAssignee={filterAssignee}
                 onToggleFilter={setFilterAssignee}
               />
 
-              {/* Kanban Four-Column Board */}
+              {/* Kanban Four-Column Board (FR14) */}
               <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start pb-6">
                 {STAGES.map((stage) => {
                   const stageTasks = displayedTasks.filter((t) => t.status === stage.id);
@@ -1927,14 +2404,16 @@ export default function App() {
                               task={task}
                               onSelect={handleOpenEditModal}
                               onHandoff={handleHandoff}
+                              onMoveTask={handleMoveTask}
                               onCopyPrompt={handleCopyPromptContext}
                               isCopied={copiedTaskId === task.id}
+                              teamMembers={projectMembers}
                             />
                           ))
                         ) : (
                           <div className="flex items-center justify-center h-28 rounded-lg border-2 border-dashed border-slate-300/80 p-4 text-center text-xs text-slate-400 font-medium">
-                            {filterAssignee
-                              ? `No tasks for ${filterAssignee} in ${stage.label}`
+                            {isFiltering
+                              ? `No matching tasks in ${stage.label}`
                               : 'Nothing here yet, continue coding'}
                           </div>
                         )}
@@ -1946,26 +2425,60 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 3: MEMBERS */}
+          {/* TAB 3: MEMBERS (FR35 - FR39) - Team Activity removed per user request */}
           {activeTab === 'members' && (
             <div className="space-y-6 max-w-6xl mx-auto">
-              {/* Team Activity Section (Duplicated in Members) */}
-              <TeamActivitySection
-                team={TEAM}
-                projectTasks={projectTasks}
-                filterAssignee={filterAssignee}
-                onToggleFilter={setFilterAssignee}
-              />
+              {/* Project Management & Member Invite Bar (FR37 & FR38) */}
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="h-10 w-10 rounded-full bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center text-lg font-bold shrink-0">
+                    👑
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                        Project Manager
+                      </span>
+                      <span className="text-xs text-slate-400">Creator Role (FR36, FR37)</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 mt-0.5">
+                      {projectManager}
+                    </h3>
+                  </div>
+                </div>
 
-              {/* Members Detailed Roster & Workload Breakdown */}
+                {/* Invite New Member Form (FR38) */}
+                <form onSubmit={handleInviteMember} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={newMemberName}
+                    onChange={(e) => setNewMemberName(e.target.value)}
+                    placeholder="New member name..."
+                    className="text-xs px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-600 w-48"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-colors shrink-0"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Invite Member</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Members Detailed Roster & Workload Breakdown Cards (Retained and enhanced!) */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {TEAM.map((member) => {
+                {projectMembers.map((member) => {
                   const memberTasks = projectTasks.filter((t) => t.assignee === member);
                   const inProgressTasks = memberTasks.filter((t) => t.status === 'in-progress');
                   const todoTasks = memberTasks.filter((t) => t.status === 'todo');
                   const reviewTasks = memberTasks.filter((t) => t.status === 'review');
                   const completedTasks = memberTasks.filter((t) => t.status === 'done');
                   const colors = getMemberColors(member);
+                  const isManager = member === projectManager;
 
                   return (
                     <div
@@ -1974,20 +2487,43 @@ export default function App() {
                     >
                       <div className="space-y-3">
                         {/* Member Header */}
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`inline-flex items-center justify-center h-10 w-10 rounded-full border text-sm font-bold shrink-0 ${colors.bg} ${colors.text} ${colors.border}`}
-                          >
-                            {getInitials(member)}
-                          </span>
-                          <div className="min-w-0">
-                            <h3 className="text-sm font-bold text-slate-900 truncate">
-                              {member}
-                            </h3>
-                            <span className="text-xs text-slate-500">
-                              {memberTasks.length} total tasks assigned
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span
+                              className={`inline-flex items-center justify-center h-10 w-10 rounded-full border text-sm font-bold shrink-0 ${colors.bg} ${colors.text} ${colors.border}`}
+                            >
+                              {getInitials(member)}
                             </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="text-sm font-bold text-slate-900 truncate">
+                                  {member}
+                                </h3>
+                                {isManager && (
+                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded" title="Project Manager">
+                                    PM
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-slate-500">
+                                {memberTasks.length} {memberTasks.length === 1 ? 'task' : 'tasks'} assigned
+                              </span>
+                            </div>
                           </div>
+
+                          {/* Remove Member Button (FR39) */}
+                          {!isManager && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMember(member)}
+                              className="text-slate-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                              title={`Remove ${member} from project (FR39)`}
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
 
                         {/* Status Counts Breakdown */}
@@ -2010,7 +2546,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Active Task List */}
+                        {/* Assigned Tasks List */}
                         <div className="space-y-1.5 pt-2">
                           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
                             Assigned Tasks:
@@ -2021,7 +2557,7 @@ export default function App() {
                                 <li
                                   key={task.id}
                                   onClick={() => handleOpenEditModal(task)}
-                                  className="text-xs p-2 rounded-md bg-slate-50 hover:bg-slate-100 cursor-pointer border border-slate-200/60 flex items-center justify-between gap-2"
+                                  className="text-xs p-2 rounded-md bg-slate-50 hover:bg-slate-100 cursor-pointer border border-slate-200/60 flex items-center justify-between gap-2 transition-colors"
                                 >
                                   <span className="truncate font-medium text-slate-800">{task.title}</span>
                                   <span className="text-[10px] font-semibold text-slate-500 uppercase shrink-0">
@@ -2055,7 +2591,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* Task Modal for Add, Edit, Delete */}
+      {/* Task Modal for Add, Edit, Delete (FR15 - FR17, FR30 - FR34) */}
       <TaskModal
         isOpen={modalState.isOpen}
         mode={modalState.mode}
@@ -2066,6 +2602,7 @@ export default function App() {
         onDelete={handleDeleteTask}
         onCopyPrompt={handleCopyPromptContext}
         isCopied={copiedTaskId === (modalState.task?.id || 'NEW-TASK')}
+        teamMembers={projectMembers}
       />
 
       {/* Toast Notification */}
