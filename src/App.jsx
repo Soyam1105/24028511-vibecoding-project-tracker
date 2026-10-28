@@ -653,7 +653,7 @@ function renderFormattedText(text) {
  */
 function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser, onAddUser }) {
   const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('password');
+  const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customEmail, setCustomEmail] = useState('');
@@ -916,7 +916,6 @@ function LandingLoginScreen({ accounts, projects, userEmails = {}, onSelectUser,
                 <input
                   id="landing-modal-pwd"
                   type="password"
-                  defaultValue="password"
                   placeholder="password"
                   className="w-full bg-white border border-slate-300 focus:border-indigo-600 px-3 py-2 text-xs rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
